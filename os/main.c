@@ -13,5 +13,5 @@ void qunetraStart() {
 }
 // The system's main loop passes the currently pressed keyboard key
 void qunetraLoop(const char keyPressed) {
-
+	(void)keyPressed;
 }

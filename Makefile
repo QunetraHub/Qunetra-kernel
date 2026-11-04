@@ -22,6 +22,14 @@ OBJ_C   = $(patsubst ./%.c, $(OBJ_DIR)/%.o, $(C_SRCS))
 OBJ_ASM = $(patsubst ./%.asm, $(OBJ_DIR)/%_asm.o, $(ASM_SRCS))
 OBJECTS = $(OBJ_ASM) $(OBJ_C)
 
+K = \033[1;38;5;240m
+T = \033[1;38;5;246m
+L = \033[1;38;5;250m
+G = \033[1;38;5;34m
+
+C_C   = \033[1;38;5;39m
+ASM_C = \033[1;38;5;99m
+
 define CHECK_TOOL
 	@if ! command -v $(1) >/dev/null 2>&1; then \
 		echo "\033[1;31m[ERROR] Missing required tool: '$(1)'\033[0m"; \
@@ -42,9 +50,10 @@ check-deps:
 
 $(IMG):
 	@dd if=/dev/zero of=$@ bs=1M count=$(IMG_SIZE) >/dev/null 2>&1
-	@echo "New image file: $@"
+	@printf "$(T)New image file: $@\n"
 
 run: all $(IMG)
+	@printf "$(T)Running '$(L)$(ISO)$(T)' on $(L)QEMU$(T)...$(T)\n"
 	@qemu-system-i386 -cdrom $(BIN_DIR)/$(ISO) -boot d \
 		-device VGA,xres=1280,yres=720 -display gtk,zoom-to-fit=off \
 		-drive file=$(IMG),format=raw,if=ide,index=0,media=disk \
@@ -56,20 +65,20 @@ $(BIN_DIR)/$(ISO): $(KERNEL) grub.cfg
 	@cp grub.cfg $(ISO_DIR)/boot/grub/grub.cfg
 	@grub-mkrescue -o $@ $(ISO_DIR) >/dev/null 2>&1
 	@rm -rf $(ISO_DIR)
-	@printf "\033[1;38;5;34mISO is ready: %s\n" "$@"
+	@printf "$(G)ISO is ready: $@$(T)\n"
 
 $(KERNEL): $(OBJECTS) | $(BIN_DIR)
-	@echo "Linking Kernel..."
+	@printf "$(L)Linking Kernel...$(T)\n"
 	@$(CC) $(LDFLAGS) -o $@ $(OBJECTS)
 
 $(OBJ_DIR)/%.o: %.c | $(OBJ_DIR)
 	@mkdir -p $(dir $@)
-	@echo "CC $<"
+	@printf "$(K)[$(C_C) C $(K)]$(T) $<\n"
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/%_asm.o: %.asm | $(OBJ_DIR)
 	@mkdir -p $(dir $@)
-	@echo "ASM $<"
+	@printf "$(K)[$(ASM_C)ASM$(K)]$(T) $<\n"
 	@$(ASM) $(ASMFLAGS) $< -o $@
 
 $(BIN_DIR) $(OBJ_DIR):
@@ -77,6 +86,6 @@ $(BIN_DIR) $(OBJ_DIR):
 
 clean:
 	@rm -rf $(OBJ_DIR) $(BIN_DIR) $(ISO_DIR) *.iso
-	@echo "Cleaned!"
+	@printf "$(T)Cleaned!\n"
 
 .PHONY: all run clean check-deps

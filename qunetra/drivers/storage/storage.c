@@ -1,14 +1,34 @@
+/*
+ * Copyright (c) 2026 Qunerum
+ *
+ * This file is part of Qunetra.
+ *
+ * Qunetra is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Qunetra is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Qunetra. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #include "../../utility/memory.h"
 #include "../../utility/types.h"
 #include "../../utility/cpu.h"
 #include "ata.h"
 
 static uint32 pciCfgRead(const uint8 bus, const uint8 device, const uint8 function, const uint8 offset) {
-	const uint32 address = (uint32)((1 << 31) |
-	(bus << 16) |
-	((device & 0x1F) << 11) |
-	((function & 0x07) << 8) |
-	(offset & 0xFC));
+	const uint32 address =
+		(uint32)((1 << 31) |
+		(bus << 16) |
+		((device & 0x1F) << 11) |
+		((function & 0x07) << 8) |
+		(offset & 0xFC));
 	outl(0xCF8, address);
 	return inl(0xCFC);
 }
@@ -47,7 +67,6 @@ void closeStorage() {
 	kfree(tmpData);
 	kfree(tmpData2);
 }
-
 static void readTmp(const uint64 sector) {
 	if (sector != actualSector) {
 		ssread(sector, tmpData);
@@ -89,4 +108,10 @@ static uint64 getNext(const uint64 sector) {
 // 8 - 511 data: 504 bytes
 void writeFile(const char* name, const uint64 dirID, const uint8* data, const uint64 len) {
 	if (len == 0 || !data) return;
+	(void)name;
+	(void)dirID;
+	return;
+	getNext(0);
+	setNext(0,0);
+	writeTmp();
 }

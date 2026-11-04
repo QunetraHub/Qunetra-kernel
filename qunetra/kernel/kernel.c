@@ -1,3 +1,22 @@
+/*
+ * Copyright (c) 2026 Qunerum
+ *
+ * This file is part of Qunetra.
+ *
+ * Qunetra is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Qunetra is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Qunetra. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #include "../utility/string.h"
 #include "../utility/memory.h"
 #include "../utility/types.h"
@@ -10,6 +29,8 @@
 
 #include "console.h"
 #include "cli.h"
+#include "interrupts.h"
+#include "keyboard.h"
 
 #define DISTANCE 35
 static void prtState(const char* name, const state stat) {
@@ -76,19 +97,11 @@ uint64 getHumanSize(const uint64 sectors, const char** memUnit) {
 	else { *memUnit = " B"; return sectors * 512ULL; }
 	return 0;
 }
-
 void closeQunetra() { closeStorage(); }
-
-static const char keyboard_map[128] = {
-	0,  27, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b',
-	'\t', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n',
-	0,   'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`',
-	0,  '\\', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', 0,
-	'*',  0,  ' '
-};
 
 extern void qunetraStart();
 extern void qunetraLoop(const char keyPressed);
+
 void kernel_main(const uint32 magic, const uint32 addr) {
 	if (magic != 0x36d76289) {
 		vga("ERROR: Bad Multiboot2 Magic Number!");
@@ -103,6 +116,10 @@ void kernel_main(const uint32 magic, const uint32 addr) {
 	prtState("Console", console);
 	prtNxN("Screen resolution", getWidth(), 'x', getHeight());
 	prtState("Kernel", true);
+	kprintf("%q=-= %qInterrupts %q=-=\n", 4, 13, 4);
+	prtState("IDT + PIC", initInterrupts());
+	prtState("Keyboard", initKeyboard());
+	sti();
 	kprintf("%q=-= %qStorage %q=-=\n", 4, 13, 4);
 	prtCustom("Controller", initStorage());
 	const char* memUnit;
@@ -124,11 +141,7 @@ void kernel_main(const uint32 magic, const uint32 addr) {
 	}
 	qunetraStart();
 	while (1) {
-		char c = 0;
-		if (inb(0x64) & 1) {
-			const uint8 scancode = inb(0x60);
-			if (!(scancode & 0x80) && scancode < 128) c = keyboard_map[scancode];
-		}
+		char c = keyboardGet();
 		setCharCLI(c);
 		qunetraLoop(c);
 	}

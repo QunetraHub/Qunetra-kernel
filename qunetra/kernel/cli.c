@@ -1,3 +1,22 @@
+/*
+ * Copyright (c) 2026 Qunerum
+ *
+ * This file is part of Qunetra.
+ *
+ * Qunetra is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Qunetra is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Qunetra. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #include "../utility/types.h"
 #include "console.h"
 
@@ -7,6 +26,7 @@
 static uint16 inputLength = 0;
 static char input[CMD_MAX_LEN + 1];
 static state CLIDisabled = false;
+
 void clearCLI() {
 	input[0] = '\0';
 	while (inputLength > 0) {
@@ -18,15 +38,14 @@ void setCLIState(const state _state) {
 	CLIDisabled = !_state;
 	if (CLIDisabled && inputLength > 0) clearCLI();
 }
-
 void addCmd(const char* cmd) {
-
+	(void)cmd;
 }
-
 void runCmd(const char* cmd, uint cmdLen) {
 	if (inputLength == 0) return;
 	putChar('\n');
-
+	(void)cmd;
+	(void)cmdLen;
 
 	kprintf("%qUnkown command! ['%s']%q\n", 20, cmd, 13);
 	inputLength = 0;
