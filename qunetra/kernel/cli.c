@@ -20,11 +20,13 @@
 #include "../utility/types.h"
 #include "console.h"
 
-#define CMD_MAX_LEN 128
+#ifndef QUNETRA_CMD_MAX_LEN
+#define QUNETRA_CMD_MAX_LEN 128
+#endif
 #define CMDL_STEP 256
 
 static uint16 inputLength = 0;
-static char input[CMD_MAX_LEN + 1];
+static char input[QUNETRA_CMD_MAX_LEN + 1];
 static state CLIDisabled = false;
 
 void clearCLI() {
@@ -63,7 +65,7 @@ void setCharCLI(const char c) {
 		input[inputLength] = '\0';
 		return;
 	}
-	if (inputLength >= CMD_MAX_LEN) return;
+	if (inputLength >= QUNETRA_CMD_MAX_LEN) return;
 	putChar(c);
 	input[inputLength] = c;
 	inputLength++;
