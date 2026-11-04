@@ -21,6 +21,7 @@
 #include "../../utility/types.h"
 #include "../../utility/cpu.h"
 #include "ata.h"
+#include <complex.h>
 
 static uint32 pciCfgRead(const uint8 bus, const uint8 device, const uint8 function, const uint8 offset) {
 	const uint32 address =
@@ -32,6 +33,7 @@ static uint32 pciCfgRead(const uint8 bus, const uint8 device, const uint8 functi
 	outl(0xCF8, address);
 	return inl(0xCFC);
 }
+static uint8 storageType = 0;
 static char* getStorageType() {
 	for (uint8 bus = 0; bus < 8; bus++) {
 		for (uint8 device = 0; device < 32; device++) {
@@ -43,8 +45,13 @@ static char* getStorageType() {
 					subclass   = (class_reg >> 16) & 0xFF,
 					prog_if    = (class_reg >> 8) & 0xFF;
 				if (class_code == 0x01) {
-					if (subclass == 0x01) return " IDE / ATA ";
-					else if (subclass == 0x06 && prog_if == 0x01) return " AHCI / SATA ";
+					if (subclass == 0x01) {
+						storageType = 1;
+						return " IDE / ATA ";
+					} else if (subclass == 0x06 && prog_if == 0x01) {
+						storageType = 2;
+						return " AHCI / SATA ";
+					}
 				}
 			}
 		}
@@ -59,9 +66,10 @@ static void (*sswrite)(const uint64 sector, const uint8 *buf), (*ssread)(const u
 char* initStorage() {
 	tmpData = kmalloc(512);
 	tmpData2 = kmalloc(512);
-	sswrite = ata_writeSector;
-	ssread = ata_readSector;
-	return getStorageType();
+	char* type = getStorageType();
+	sswrite = storageType == 1 ? ata_writeSector : 0;
+	ssread = storageType == 1 ? ata_readSector : 0;
+	return storageType == 0 ? " ERROR " : type;
 }
 void closeStorage() {
 	kfree(tmpData);
@@ -106,12 +114,12 @@ static uint64 getNext(const uint64 sector) {
 // = = = = = SECTOR
 // 0 - 7 next: 8 bytes
 // 8 - 511 data: 504 bytes
-void writeFile(const char* name, const uint64 dirID, const uint8* data, const uint64 len) {
-	if (len == 0 || !data) return;
-	(void)name;
-	(void)dirID;
-	return;
-	getNext(0);
-	setNext(0,0);
-	writeTmp();
+uint64 createFile(const uint64 catalog, const char* name) {
+	(void)catalog;
+
+
+	return 0;
+}
+void fwriteb(const uint64 file, const uint8 v) {
+
 }
