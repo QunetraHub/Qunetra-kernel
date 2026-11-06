@@ -42,18 +42,23 @@ void setCLIState(const state _state) {
 	CLIDisabled = !_state;
 	if (CLIDisabled && inputLength > 0) clearCLI();
 }
-static char** commands = 0;
+typedef struct {
+	char* cmd;
+	void (*action)();
+} qCmd;
+static qCmd* commands = 0;
 static uint cmdCount = 0, maxCount = QUNETRA_CMDL_STEP;
 state initCLI() {
-	commands = kmalloc(QUNETRA_CMDL_STEP * sizeof(char *));
+	commands = kmalloc(QUNETRA_CMDL_STEP * sizeof(qCmd));
 	return commands != 0;
 }
-void addCmd(const char* cmd) {
+void addCmd(const char* cmd, const void (*action)()) {
 	if (cmdCount >= maxCmd) {
-		char** newCmds = krealloc((maxCmds + QUNETRA_CMDL_STEP) * sizeof(char *));
+		char** newCmds = krealloc((maxCmds + QUNETRA_CMDL_STEP) * sizeof(qCmd));
 		commands = newCmds;
 	}
-	commands[cmdCount] = cmd;
+	commands[cmdCount].cmd = cmd;
+	commands[cmdCount].action = action;
 	cmdCount++;
 }
 void runCmd(const char* cmd, uint maxLen) {
@@ -63,8 +68,22 @@ void runCmd(const char* cmd, uint maxLen) {
 	if (cmdLen < 0) cmdLen = maxLen;
 	char tmp[cmdLen + 1];
 	strCopyN(tmp, cmd, cmdLen);
+	const uint cmdID = 0;
+	const state cmdFound = false;
+	for (uint i = 0; i < cmdCount; i++) {
+		if (strIs(tmp, commands[i])) {
+			cmdID = i;
+			cmdFound = true;
+			break;
+		}
+	}
+	if (!cmdFound) {
+		kprintf("%qUnkown command! ['%s']%q\n", 20, cmd, 13);
+		inputLength = 0;
+		input[0] = '\0';
+		return;
+	}
 	
-	kprintf("%qUnkown command! ['%s']%q\n", 20, cmd, 13);
 	inputLength = 0;
 	input[0] = '\0';
 }
