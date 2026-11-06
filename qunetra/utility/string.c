@@ -44,6 +44,16 @@ void strCopy(char* dest, const char* src) {
 	}
 	*dest = '\0';
 }
+void strCopyN(char* dest, const char* src, const uint n) {
+	if (!dest || !src || !n) return;
+	for (uint i = 0; i < n; i++) {
+		if (*src == '\0') break;
+		*dest = *src;
+		dest++;
+		src++;
+	}
+	*dest = '\0';
+}
 void strShiftRight(char* str, const uint size, const uint shift) {
 	if (!str || size == 0 || shift == 0) return;
 	uint len = strLen(str);
