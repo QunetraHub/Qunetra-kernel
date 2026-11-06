@@ -23,7 +23,9 @@
 #ifndef QUNETRA_CMD_MAX_LEN
 #define QUNETRA_CMD_MAX_LEN 128
 #endif
-#define CMDL_STEP 256
+#ifndef QUNETRA_CMDL_STEP
+#define QUNETRA_CMDL_STEP 64
+#endif
 
 static uint16 inputLength = 0;
 static char input[QUNETRA_CMD_MAX_LEN + 1];
@@ -40,15 +42,28 @@ void setCLIState(const state _state) {
 	CLIDisabled = !_state;
 	if (CLIDisabled && inputLength > 0) clearCLI();
 }
-void addCmd(const char* cmd) {
-	(void)cmd;
+static char** commands = 0;
+static uint cmdCount = 0, maxCount = QUNETRA_CMDL_STEP;
+state initCLI() {
+	commands = kmalloc(QUNETRA_CMDL_STEP * sizeof(char *));
+	return commands != 0;
 }
-void runCmd(const char* cmd, uint cmdLen) {
+void addCmd(const char* cmd) {
+	if (cmdCount >= maxCmd) {
+		char** newCmds = krealloc((maxCmds + QUNETRA_CMDL_STEP) * sizeof(char *));
+		commands = newCmds;
+	}
+	commands[cmdCount] = cmd;
+	cmdCount++;
+}
+void runCmd(const char* cmd, uint maxLen) {
 	if (inputLength == 0) return;
 	putChar('\n');
-	(void)cmd;
-	(void)cmdLen;
-
+	const int cmdLen = strFind(cmd, ' ');
+	if (cmdLen < 0) cmdLen = maxLen;
+	char tmp[cmdLen + 1];
+	strCopyN(tmp, cmd, cmdLen);
+	
 	kprintf("%qUnkown command! ['%s']%q\n", 20, cmd, 13);
 	inputLength = 0;
 	input[0] = '\0';
