@@ -35,4 +35,12 @@ static inline uint8 clearBit(const uint8 val, uint8 bit_index) {
 	return val & ~(1 << bit_index);
 }
 
+static inline uint bitsTest() {
+	uint x = 0;
+	x += !getBit(8, 2) && getBit(11, 1) && getBit(26, 4);
+	x += setBit(23, 3) == 31;
+	x += clearBit(59, 0) == 58;
+	return x;
+}
+
 #endif

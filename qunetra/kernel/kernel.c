@@ -21,6 +21,7 @@
 #include "../utility/memory.h"
 #include "../utility/types.h"
 #include "../utility/math.h"
+#include "../utility/bits.h"
 #include "../utility/cpu.h"
 
 #include "../drivers/lfb.h"
@@ -130,6 +131,7 @@ void kernel_main(const uint32 magic, const uint32 addr) {
 	prtStateNxN("string.h", stringTest(), 20);
 	prtStateNxN("memory.h", memoryTest(), 3);
 	prtStateNxN("math.h", mathTest() * 2, 10);
+	prtStateNxN("bits.h", bitsTest(), 3);
 	putChar('\n');
 	for (uint8 y = 0; y < 16; y++) {
 		for (uint8 x = 0; x < 16; x++) {
@@ -140,8 +142,8 @@ void kernel_main(const uint32 magic, const uint32 addr) {
 		putChar('\n');
 	}
 	qunetraStart();
-	while (1) {
-		char c = keyboardGet();
+	while (true) {
+		const char c = keyboardGet();
 		setCharCLI(c);
 		qunetraLoop(c);
 	}

@@ -5,12 +5,12 @@
 
 #define VER_MAJOR      0
 #define VER_MINOR      7
-#define VER_PATCH      2
+#define VER_PATCH      3
 #define VER_REVISION   0
 
 #define VER_YEAR       26
 #define VER_MONTH      11
-#define VER_DAY        7
+#define VER_DAY        8
 
 #define _STRINGIFY2(x) #x
 #define _STRINGIFY(x)  _STRINGIFY2(x)
