@@ -21,6 +21,7 @@
 #include "../../utility/cpu.h"
 #include "../../utility/string.h"
 #include "ata.h"
+#include "ahci.h"
 #include "storage.h"
 
 static uint32 pciCfgRead(const uint8 bus, const uint8 device, const uint8 function, const uint8 offset) {
@@ -33,8 +34,12 @@ static uint32 pciCfgRead(const uint8 bus, const uint8 device, const uint8 functi
 	outl(0xCF8, address);
 	return inl(0xCFC);
 }
-static uint8 storageType = 0;
-static char* getStorageType() {
+static uint8 storageType = 0; // 0 = none, 1 = IDE / ATA, 2 = AHCI / SATA
+static state haveIde = false, haveAhci = false;
+static uint8 ahciBus = 0, ahciDevice = 0, ahciFunction = 0;
+static void scanPci() {
+	haveIde = false;
+	haveAhci = false;
 	for (uint8 bus = 0; bus < 8; bus++) {
 		for (uint8 device = 0; device < 32; device++) {
 			for (uint8 function = 0; function < 8; function++) {
@@ -44,19 +49,17 @@ static char* getStorageType() {
 				const uint8 class_code = (class_reg >> 24) & 0xFF,
 				subclass   = (class_reg >> 16) & 0xFF,
 				prog_if    = (class_reg >> 8) & 0xFF;
-				if (class_code == 0x01) {
-					if (subclass == 0x01) {
-						storageType = 1;
-						return " IDE / ATA ";
-					} else if (subclass == 0x06 && prog_if == 0x01) {
-						storageType = 2;
-						return " AHCI / SATA ";
-					}
+				if (class_code != 0x01) continue;
+				if (subclass == 0x01) haveIde = true;
+				else if (subclass == 0x06 && prog_if == 0x01 && !haveAhci) {
+					haveAhci = true;
+					ahciBus = bus;
+					ahciDevice = device;
+					ahciFunction = function;
 				}
 			}
 		}
 	}
-	return " NONE ";
 }
 // ===================================================================================
 // Layout
@@ -196,16 +199,31 @@ static uint64 appendSector(const uint64 first) {
 	return n;
 }
 char* initStorage() {
-	char* type = getStorageType();
-	if (storageType == 0) return " ERROR ";
-	if (storageType != 1) return type;
-	sswrite = ata_writeSector;
-	ssread = ata_readSector;
-	totalSectors = ata_getSectorCount();
-	if (totalSectors <= SECTOR_FIRST_DATA) return " ERROR ";
+	char* type = " ERROR ";
+	scanPci();
+	storageType = 0;
+	if (haveAhci && ahci_init(ahciBus, ahciDevice, ahciFunction)) {
+		storageType = 2;
+		type = " AHCI / SATA ";
+		sswrite = ahci_writeSector;
+		ssread = ahci_readSector;
+		totalSectors = ahci_getSectorCount();
+	} else if (haveIde) {
+		storageType = 1;
+		type = " IDE / ATA ";
+		sswrite = ata_writeSector;
+		ssread = ata_readSector;
+		totalSectors = ata_getSectorCount();
+	} else if (haveAhci) return " AHCI: NO DISK ";
+	if (storageType == 0 || totalSectors <= SECTOR_FIRST_DATA) {
+		ssread = 0;
+		sswrite = 0;
+		return " ERROR ";
+	}
 	if (getByte(SECTOR_META, 0) != QUNETRA_OS_META) formatStorage();
 	return type;
 }
+uint64 storageSectors() { return totalSectors; }
 static state nameIs(const uint64 sector, const uint16 off, const char* name) {
 	for (uint8 i = 0; i <= NAME_MAX; i++) {
 		const uint8 c = getByte(sector, off + i);
@@ -321,10 +339,10 @@ uint64 fileSize(const uint64 file) {
 	for (uint64 s = file; s; s = getNext(s)) total += getSize(s);
 	return total;
 }
-state fwrite(const uint64 file, const char* value) {
-	if (file < SECTOR_FIRST_DATA || !value) return false;
+state kfwrite(const uint64 file, const char* value) {
+	if (!ssread || file < SECTOR_FIRST_DATA || !value) return false;
 	while (*value) {
-		fwriteb(file, *value);
+		if (!fwriteb(file, *value)) return false;
 		value++;
 	}
 	return true;

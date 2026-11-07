@@ -20,6 +20,12 @@
 #ifndef QUNETRA_AHCI_H
 #define QUNETRA_AHCI_H
 
+#include "../../utility/types.h"
 
+state ahci_init(const uint8 bus, const uint8 device, const uint8 function);
+
+void ahci_readSector(const uint64 lba, uint8 *buf);
+void ahci_writeSector(const uint64 lba, const uint8 *buf);
+uint64 ahci_getSectorCount();
 
 #endif

@@ -1,13 +1,15 @@
 CC  = gcc
 ASM = nasm
 
-BIN_DIR = .bin
-OBJ_DIR = .obj
-ISO_DIR = iso
-ISO     = qunetra.iso
-KERNEL  = $(BIN_DIR)/kernel.bin
-IMG     = qunetra.img
+BIN_DIR  = .bin
+OBJ_DIR  = .obj
+ISO_DIR  = iso
+ISO      = qunetra.iso
+KERNEL   = $(BIN_DIR)/kernel.bin
+IMG      = qunetra.img
 IMG_SIZE = 64 # MiB
+
+STORAGE_TYPE = AHCI # ATA / AHCI
 
 CFLAGS   = -std=gnu99 -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-builtin -mgeneral-regs-only -fcf-protection=none -O2 -Wall -Wextra -I. -Iinclude
 ASMFLAGS = -f elf32
@@ -22,13 +24,16 @@ OBJ_C   = $(patsubst ./%.c, $(OBJ_DIR)/%.o, $(C_SRCS))
 OBJ_ASM = $(patsubst ./%.asm, $(OBJ_DIR)/%_asm.o, $(ASM_SRCS))
 OBJECTS = $(OBJ_ASM) $(OBJ_C)
 
-K = \033[1;38;5;240m
-T = \033[1;38;5;246m
-L = \033[1;38;5;250m
-G = \033[1;38;5;34m
+CLR_ESC    = \033[1;38;5;
+BRACKET    = $(CLR_ESC)240m
+TEXT       = $(CLR_ESC)246m
+LIGHT_TEXT = $(CLR_ESC)250m
+GREEN      = $(CLR_ESC)34m
+SIZE_COLOR = $(CLR_ESC)214m
+C_COLOR    = $(CLR_ESC)39m
+ASM_COLOR  = $(CLR_ESC)99m
 
-C_C   = \033[1;38;5;39m
-ASM_C = \033[1;38;5;99m
+
 
 define CHECK_TOOL
 	@if ! command -v $(1) >/dev/null 2>&1; then \
@@ -37,6 +42,12 @@ define CHECK_TOOL
 		exit 1; \
 	fi
 endef
+
+ifeq ($(strip $(STORAGE_TYPE)),AHCI)
+    DRIVE_ARGS = -device ich9-ahci,id=ahci -drive file=$(IMG),format=raw,if=none,id=disk -device ide-hd,drive=disk,bus=ahci.0
+else
+    DRIVE_ARGS = -drive file=$(IMG),format=raw,if=ide,index=0,media=disk
+endif
 
 all: check-deps $(BIN_DIR)/$(ISO)
 
@@ -50,13 +61,13 @@ check-deps:
 
 $(IMG):
 	@dd if=/dev/zero of=$@ bs=1M count=$(IMG_SIZE) >/dev/null 2>&1
-	@printf "$(T)New image file: $@\n"
+	@printf "$(TEXT)New image file: $@\n"
 
 run: all $(IMG)
-	@printf "$(T)Running '$(L)$(ISO)$(T)' on $(L)QEMU$(T)...$(T)\n"
+	@printf "$(TEXT)Running '$(LIGHT_TEXT)$(ISO)$(TEXT)' on $(LIGHT_TEXT)QEMU$(TEXT) [Controller: $(LIGHT_TEXT)$(strip $(STORAGE_TYPE))$(TEXT)]...\n"
 	@qemu-system-i386 -cdrom $(BIN_DIR)/$(ISO) -boot d \
 		-device VGA,xres=1280,yres=720 -display gtk,zoom-to-fit=off \
-		-drive file=$(IMG),format=raw,if=ide,index=0,media=disk \
+		$(DRIVE_ARGS) \
 		-d int,cpu_reset -D qemu.log
 
 $(BIN_DIR)/$(ISO): $(KERNEL) grub.cfg
@@ -65,27 +76,28 @@ $(BIN_DIR)/$(ISO): $(KERNEL) grub.cfg
 	@cp grub.cfg $(ISO_DIR)/boot/grub/grub.cfg
 	@grub-mkrescue -o $@ $(ISO_DIR) >/dev/null 2>&1
 	@rm -rf $(ISO_DIR)
-	@printf "$(G)ISO is ready: $@$(T)\n"
+	@printf "$(GREEN)ISO is ready: $(LIGHT_TEXT)$@$(TEXT)\n"
 
 $(KERNEL): $(OBJECTS) | $(BIN_DIR)
-	@printf "$(L)Linking Kernel...$(T)\n"
 	@$(CC) $(LDFLAGS) -o $@ $(OBJECTS)
+	@printf "$(LIGHT_TEXT)Kernel linked successfully!\n"
 
 $(OBJ_DIR)/%.o: %.c | $(OBJ_DIR)
 	@mkdir -p $(dir $@)
-	@printf "$(K)[$(C_C) C $(K)]$(T) $<\n"
 	@$(CC) $(CFLAGS) -c $< -o $@
+	@printf "$(BRACKET)[$(C_COLOR) C $(BRACKET)] $(TEXT)$(dir $<)$(LIGHT_TEXT)$(notdir $<)$(TEXT)\n"
 
 $(OBJ_DIR)/%_asm.o: %.asm | $(OBJ_DIR)
 	@mkdir -p $(dir $@)
-	@printf "$(K)[$(ASM_C)ASM$(K)]$(T) $<\n"
 	@$(ASM) $(ASMFLAGS) $< -o $@
+	@printf "$(BRACKET)[$(ASM_COLOR)ASM$(BRACKET)] $(TEXT)$(dir $<)$(LIGHT_TEXT)$(notdir $<)$(TEXT)\n"
 
 $(BIN_DIR) $(OBJ_DIR):
+	@printf "$(BRACKET)[ - ]$(LIGHT_TEXT) = = = = = = = = = = = = = = = >\n"
 	@mkdir -p $@
 
 clean:
 	@rm -rf $(OBJ_DIR) $(BIN_DIR) $(ISO_DIR) *.iso
-	@printf "$(T)Cleaned!\n"
+	@printf "$(TEXT)Cleaned!\n"
 
 .PHONY: all run clean check-deps

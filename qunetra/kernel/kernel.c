@@ -24,7 +24,6 @@
 #include "../utility/cpu.h"
 
 #include "../drivers/lfb.h"
-#include "../drivers/storage/ata.h"
 #include "../drivers/storage/storage.h"
 
 #include "console.h"
@@ -124,7 +123,7 @@ void kernel_main(const uint32 magic, const uint32 addr) {
 	kprintf("%q=-= %qStorage %q=-=\n", 4, 13, 4);
 	prtCustom("Controller", initStorage());
 	const char* memUnit;
-	const uint64 sectors = ata_getSectorCount(), diskMem = getHumanSize(sectors, &memUnit);
+	const uint64 sectors = storageSectors(), diskMem = getHumanSize(sectors, &memUnit);
 	prtVal("Sectors", sectors, "");
 	prtVal("Disk memory", diskMem, memUnit);
 	kprintf("%q=-= %qUtility %q=-=\n", 4, 13, 4);

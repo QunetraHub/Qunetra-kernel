@@ -22,6 +22,7 @@
 
 #include "../qunetra/utility/types.h" // IWYU pragma: keep
 #include "../qunetra/kernel/console.h" // IWYU pragma: keep
+#include "../qunetra/kernel/kernel_info.h" // IWYU pragma: keep
 
 #ifdef QUNETRA_STRING
 #include "../qunetra/utility/string.h"

@@ -24,8 +24,8 @@
 
 void setCLIState(const state _state);
 void setCharCLI(const char c);
-void addCmd(const char* cmd, const void (*action)());
-void runCmd(const char* cmd, uint maxLen);
+void addCmd(const char* cmd, void (*action)());
+void runCmd(const char* cmd, uint16 maxLen);
 state initCLI();
 
 #endif

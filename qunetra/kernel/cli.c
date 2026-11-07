@@ -69,7 +69,7 @@ state initCLI() {
 	addCmd("help", _qc_help);
 	return commands != 0;
 }
-void runCmd(const char* cmd, uint maxLen) {
+void runCmd(const char* cmd, uint16 maxLen) {
 	if (inputLength == 0) return;
 	putChar('\n');
 	int cmdLen = strFind(cmd, ' ');

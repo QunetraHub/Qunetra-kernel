@@ -7,16 +7,15 @@
 #define QUNETRA_STORAGE
 #include "qunetra.h" // IWYU pragma: keep
 
-
 #define FILE "hello.txt"
 // Calls functions before the loop
 void qunetraStart() {
-	kprintf("Hello, World!\n\n");
+	kprintf("Hello from " KERNEL_NAME " ver. " KERNEL_VERSION_STR " !\n\n");
 	uint64 f = findFile(1, FILE);
-	if (f) deleteFile(1, FILE);
-	f = createFile(1, FILE);
+	// if (f) deleteFile(1, FILE);
+	// f = createFile(1, FILE);
 
-	fwrite(f, "Hello, World!");
+	// kfwrite(f, "Hello, World!");
 
 	const uint64 fs = fileSize(f);
 	kprintf(FILE ":\n\tsector: %p\n\t  size: %uB\n\t  data:\n", f, fs);
