@@ -321,3 +321,11 @@ uint64 fileSize(const uint64 file) {
 	for (uint64 s = file; s; s = getNext(s)) total += getSize(s);
 	return total;
 }
+state fwrite(const uint64 file, const char* value) {
+	if (file < SECTOR_FIRST_DATA || !value) return false;
+	while (*value) {
+		fwriteb(file, *value);
+		value++;
+	}
+	return true;
+}

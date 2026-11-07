@@ -108,11 +108,13 @@ void kernel_main(const uint32 magic, const uint32 addr) {
 	}
 	const state lfb = initLFB(addr),
 				console = initConsole();
+	heap_init();
 	lfbFill(0);
 	kprintf("%q=-=-=-=-=-=-= %qQunetra %q=-=-=-=-=-=-=\n", 4, 13, 4);
 	prtState("Magic number", true);
 	prtState("LFB", lfb);
 	prtState("Console", console);
+	prtState("CLI", initCLI());
 	prtNxN("Screen resolution", getWidth(), 'x', getHeight());
 	prtState("Kernel", true);
 	kprintf("%q=-= %qInterrupts %q=-=\n", 4, 13, 4);

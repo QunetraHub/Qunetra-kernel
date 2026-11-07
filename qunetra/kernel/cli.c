@@ -26,7 +26,7 @@
 #define QUNETRA_CMD_MAX_LEN 128
 #endif
 #ifndef QUNETRA_CMDL_STEP
-#define QUNETRA_CMDL_STEP 64
+#define QUNETRA_CMDL_STEP 16
 #endif
 
 static uint16 inputLength = 0;
@@ -45,29 +45,35 @@ void setCLIState(const state _state) {
 	if (CLIDisabled && inputLength > 0) clearCLI();
 }
 typedef struct {
-	char* cmd;
+	const char* cmd;
 	void (*action)();
 } qCmd;
 static qCmd* commands = 0;
 static uint cmdCount = 0, maxCount = QUNETRA_CMDL_STEP;
-state initCLI() {
-	commands = kmalloc(QUNETRA_CMDL_STEP * sizeof(qCmd));
-	return commands != 0;
-}
-void addCmd(const char* cmd, const void (*action)()) {
+
+void addCmd(const char* cmd, void (*action)()) {
 	if (cmdCount >= maxCount) {
 		qCmd* newCmds = krealloc(commands, (maxCount + QUNETRA_CMDL_STEP) * sizeof(qCmd));
 		commands = newCmds;
 	}
-	// commands[cmdCount].cmd = cmd;
-	// commands[cmdCount].action = action;
+	commands[cmdCount].cmd = cmd;
+	commands[cmdCount].action = action;
 	cmdCount++;
+}
+
+void _qc_help() {
+	kprintf("help - view all commands\n");
+}
+state initCLI() {
+	commands = kmalloc(QUNETRA_CMDL_STEP * sizeof(qCmd));
+	addCmd("help", _qc_help);
+	return commands != 0;
 }
 void runCmd(const char* cmd, uint maxLen) {
 	if (inputLength == 0) return;
 	putChar('\n');
 	int cmdLen = strFind(cmd, ' ');
-	if (cmdLen < 0) cmdLen = maxLen;
+	if (cmdLen < 0 || cmdLen > maxLen) cmdLen = maxLen;
 	char tmp[cmdLen + 1];
 	strCopyN(tmp, cmd, cmdLen);
 	uint cmdID = 0;
@@ -80,12 +86,12 @@ void runCmd(const char* cmd, uint maxLen) {
 		}
 	}
 	if (!cmdFound) {
-		kprintf("%qUnkown command! ['%s']%q\n", 20, cmd, 13);
+		kprintf("%qUnkown command! ['%s']%q\n", 20, tmp, 13);
 		inputLength = 0;
 		input[0] = '\0';
 		return;
 	}
-	
+	if (commands[cmdID].action) commands[cmdID].action();
 	inputLength = 0;
 	input[0] = '\0';
 }

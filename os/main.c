@@ -15,12 +15,9 @@ void qunetraStart() {
 	uint64 f = findFile(1, FILE);
 	if (f) deleteFile(1, FILE);
 	f = createFile(1, FILE);
-	for (uint8 i = 0; i < 10; i++) {
-		for (char c = 'a'; c <= 'z'; c++) fwriteb(f, c);
-		fwriteb(f, ' ');
-		for (char c = 'A'; c <= 'Z'; c++) fwriteb(f, c);
-		fwriteb(f, ' ');
-	}
+
+	fwrite(f, "Hello, World!");
+
 	const uint64 fs = fileSize(f);
 	kprintf(FILE ":\n\tsector: %p\n\t  size: %uB\n\t  data:\n", f, fs);
 	uint i = 0;

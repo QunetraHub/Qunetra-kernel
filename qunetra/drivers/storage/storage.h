@@ -29,5 +29,6 @@ state deleteFile(const uint64 catalog, const char* name);
 state fwriteb(const uint64 file, const uint8 v);
 state freadb(const uint64 file, const uint64 pos, uint8* out);
 uint64 fileSize(const uint64 file);
+state fwrite(const uint64 file, const char* value);
 
 #endif

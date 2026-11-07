@@ -26,6 +26,7 @@ void *kmalloc(vsize size);
 void kfree(void *ptr);
 void *krealloc(void *ptr, vsize new_size);
 
+void heap_init();
 uint memoryTest();
 
 #endif

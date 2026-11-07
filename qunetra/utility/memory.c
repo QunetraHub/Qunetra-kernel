@@ -30,7 +30,7 @@ typedef struct block_header {
 
 static block_header_t *heap_head = 0;
 
-static void heap_init(void) {
+void heap_init() {
 	heap_head = (block_header_t *)HEAP_START;
 	heap_head->size = HEAP_INITIAL_SIZE - sizeof(block_header_t);
 	heap_head->is_free = 1;
@@ -86,7 +86,6 @@ void *krealloc(void *ptr, const vsize new_size) {
 }
 uint memoryTest() {
 	uint x = 0;
-	heap_init();
 	char *p1 = kmalloc(32), *p2 = kmalloc(64);
 	if (!p1 || !p2) return x;
 	x++;
