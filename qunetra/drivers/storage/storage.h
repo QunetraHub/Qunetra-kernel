@@ -28,8 +28,9 @@ uint64 createFile(const uint64 catalog, const char* name);
 uint64 findFile(const uint64 catalog, const char* name);
 state deleteFile(const uint64 catalog, const char* name);
 state fwriteb(const uint64 file, const uint8 v);
+state kfwrite(const uint64 file, const char* value);
 state freadb(const uint64 file, const uint64 pos, uint8* out);
 uint64 fileSize(const uint64 file);
-state kfwrite(const uint64 file, const char* value);
+void listFiles(const uint64 catalog);
 
 #endif

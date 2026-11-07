@@ -20,6 +20,7 @@
 #include "../../utility/types.h"
 #include "../../utility/cpu.h"
 #include "../../utility/string.h"
+#include "../../kernel/console.h"
 #include "ata.h"
 #include "ahci.h"
 #include "storage.h"
@@ -319,6 +320,14 @@ state fwriteb(const uint64 file, const uint8 v) {
 	flushStorage();
 	return true;
 }
+state kfwrite(const uint64 file, const char* value) {
+	if (!ssread || file < SECTOR_FIRST_DATA || !value) return false;
+	while (*value) {
+		if (!fwriteb(file, *value)) return false;
+		value++;
+	}
+	return true;
+}
 state freadb(const uint64 file, const uint64 pos, uint8* out) {
 	if (!ssread || !out || file < SECTOR_FIRST_DATA) return false;
 	uint64 s = file, skip = pos;
@@ -339,11 +348,20 @@ uint64 fileSize(const uint64 file) {
 	for (uint64 s = file; s; s = getNext(s)) total += getSize(s);
 	return total;
 }
-state kfwrite(const uint64 file, const char* value) {
-	if (!ssread || file < SECTOR_FIRST_DATA || !value) return false;
-	while (*value) {
-		if (!fwriteb(file, *value)) return false;
-		value++;
+void listFiles(const uint64 catalog) {
+	if (!ssread) return;
+	const uint64 cat = realCatalog(catalog);
+	char name[NAME_MAX + 1];
+	for (uint64 s = cat; s; s = getNext(s)) {
+		for (uint8 i = 0; i < ENTRIES_PER_SECTOR; i++) {
+			const uint16 off = SEC_DATA + i * ENTRY_SIZE;
+			const uint64 file_id = getAddr(s, off);
+			name[0] = '\0';
+			if (file_id != 0) {
+				for (uint8 j = 0; j <= NAME_MAX; j++) name[j] = (char)getByte(s, off + 8 + j);
+				name[NAME_MAX] = '\0';
+				kprintf("> %s [ %p ]-[ %u B ]\n", name, file_id, fileSize(file_id));
+			}
+		}
 	}
-	return true;
 }

@@ -20,6 +20,7 @@
 #include "../utility/string.h"
 #include "../utility/memory.h"
 #include "../utility/types.h"
+#include "../drivers/storage/storage.h"
 #include "console.h"
 
 #ifndef QUNETRA_CMD_MAX_LEN
@@ -60,13 +61,12 @@ void addCmd(const char* cmd, void (*action)()) {
 	commands[cmdCount].action = action;
 	cmdCount++;
 }
-
-void _qc_help() {
-	kprintf("help - view all commands\n");
+static void _qc_ls() {
+	listFiles(1);
 }
 state initCLI() {
 	commands = kmalloc(QUNETRA_CMDL_STEP * sizeof(qCmd));
-	addCmd("help", _qc_help);
+	addCmd("ls", _qc_ls);
 	return commands != 0;
 }
 void runCmd(const char* cmd, uint16 maxLen) {
