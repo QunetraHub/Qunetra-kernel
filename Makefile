@@ -9,7 +9,7 @@ KERNEL  = $(BIN_DIR)/kernel.bin
 IMG     = qunetra.img
 IMG_SIZE = 64 # MiB
 
-CFLAGS   = -std=gnu99 -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-builtin -O2 -Wall -Wextra -I. -Iinclude
+CFLAGS   = -std=gnu99 -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-builtin -mgeneral-regs-only -fcf-protection=none -O2 -Wall -Wextra -I. -Iinclude
 ASMFLAGS = -f elf32
 LDFLAGS  = -m32 -nostdlib -no-pie -T qunetra/boot/linker.ld
 

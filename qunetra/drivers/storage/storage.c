@@ -17,11 +17,11 @@
  * along with Qunetra. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "../../utility/memory.h"
 #include "../../utility/types.h"
 #include "../../utility/cpu.h"
+#include "../../utility/string.h"
 #include "ata.h"
-#include <complex.h>
+#include "storage.h"
 
 static uint32 pciCfgRead(const uint8 bus, const uint8 device, const uint8 function, const uint8 offset) {
 	const uint32 address =
@@ -58,34 +58,71 @@ static char* getStorageType() {
 	}
 	return " NONE ";
 }
+// ===================================================================================
+// Layout
+//
+// Disk sectors (512 B):
+//   0 - meta:        byte 0 = QUNETRA_OS_META, bytes 1-8 = file count
+//   1 - root catalog (head of a sector chain holding directory entries)
+//   2 - free sectors: next = head of the free list,
+//                     data[0-7] = first never used sector (high-water mark)
+//   3+ - data sectors
+//
+// Every chain sector:
+//   0  - 7   next: next sector in the chain (0 = end)
+//   8  - 15  last: last sector of the chain (valid in the FIRST sector of a chain)
+//   16 - 17  size: number of used data bytes in this sector
+//   18 - 511 data: 494 bytes
+//
+// A file = a chain of sectors, its id = number of the first sector.
+// Directory entry (40 B): 0-7 first sector of the file (0 = free slot), 8-39 name (NUL terminated)
+// Numbers are stored big endian.
+// ===================================================================================
+#define QUNETRA_OS_META (uint8)(0b11100111)
 
-static uint8 *tmpData, *tmpData2;
-static uint64 actualSector = 0;
+#define SEC_NEXT 0
+#define SEC_LAST 8
+#define SEC_SIZE 16
+#define SEC_DATA 18
+#define SEC_DATA_MAX 494
+
+#define SECTOR_META 0
+#define SECTOR_ROOT 1
+#define SECTOR_FREE 2
+#define SECTOR_FIRST_DATA 3
+
+#define ENTRY_SIZE 40
+#define NAME_MAX 31
+#define ENTRIES_PER_SECTOR (SEC_DATA_MAX / ENTRY_SIZE)
+
+static uint8 tmpData[512] = {0};
+static state tmpDirty = false, tmpValid = false;
+static uint64 actualSector = 0, totalSectors = 0;
 static void (*sswrite)(const uint64 sector, const uint8 *buf), (*ssread)(const uint64 sector, uint8 *buf);
 
-static void readTmp(const uint64 sector) {
-	if (sector != actualSector) {
-		ssread(sector, tmpData);
-		actualSector = sector;
-	}
+static void flushStorage() {
+	if (!tmpValid || !tmpDirty) return;
+	sswrite(actualSector, tmpData);
+	tmpDirty = false;
 }
-static void readTmp2(const uint64 sector) {
-	if (sector != actualSector) {
-		ssread(sector, tmpData2);
-		actualSector = sector;
-	}
+static void selectSector(const uint64 sector) {
+	if (tmpValid && sector == actualSector) return;
+	flushStorage();
+	actualSector = sector;
+	ssread(sector, tmpData);
+	tmpValid = true;
 }
-static void writeTmp() { sswrite(actualSector, tmpData); }
 static state setByte(const uint8 val, const uint64 sector, const uint16 byte) {
 	if (byte >= 512) return false;
-	readTmp(sector);
+	selectSector(sector);
 	tmpData[byte] = val;
+	tmpDirty = true;
 	return true;
 }
 static uint8 getByte(const uint64 sector, const uint16 byte) {
 	if (byte >= 512) return 0;
-	readTmp2(sector);
-	return tmpData2[byte];
+	selectSector(sector);
+	return tmpData[byte];
 }
 static void setAddr(const uint64 sector, const uint16 byte, const uint64 v) {
 	if (byte >= 504) return;
@@ -94,58 +131,193 @@ static void setAddr(const uint64 sector, const uint16 byte, const uint64 v) {
 static uint64 getAddr(const uint64 sector, const uint16 byte) {
 	if (byte >= 504) return 0;
 	uint64 v = 0;
-	for (uint8 i = 0; i < 8; i++) v |= getByte(sector, byte + i) << (8 * i);
+	for (uint8 i = 0; i < 8; i++) v = (v << 8) | getByte(sector, byte + i);
 	return v;
 }
 static void setNext(const uint64 sector, const uint64 next) {
 	if (!sector) return;
-	setAddr(sector, 0, next);
+	setAddr(sector, SEC_NEXT, next);
 }
 static uint64 getNext(const uint64 sector) {
 	if (!sector) return 0;
-	return getAddr(sector, 0);
+	return getAddr(sector, SEC_NEXT);
 }
-// = = = = = META (0)
-// 0 - meta
-// 1 - 8 file count: 8 bytes
-// sector 1 - files
-// sector 2 - free sectors
+static uint16 getSize(const uint64 sector) { return (uint16)((getByte(sector, SEC_SIZE) << 8) | getByte(sector, SEC_SIZE + 1)); }
+static void setSize(const uint64 sector, const uint16 v) {
+	setByte((uint8)(v >> 8), sector, SEC_SIZE);
+	setByte((uint8)v, sector, SEC_SIZE + 1);
+}
+static void clearSector(const uint64 sector) {
+	selectSector(sector);
+	for (uint16 i = 0; i < 512; i++) tmpData[i] = 0;
+	tmpDirty = true;
+}
+static void initSector(const uint64 sector) {
+	clearSector(sector);
+	setAddr(sector, SEC_LAST, sector);
+}
 
-// = = = = = SECTOR
-// 0 - 7 next: 8 bytes
-// 8 - 9 last: 8 bytes
-// 10 - 11 size: 2 bytes
-// 12 - 511 data: 494 bytes
-#define QUNETRA_OS_META (uint8)(0b110101111)
-static uint64 getFileCount() { return getAddr(0, 1); }
+static uint64 getFileCount() { return getAddr(SECTOR_META, 1); }
+static void setFileCount(const uint64 v) { setAddr(SECTOR_META, 1, v); }
+
+static void formatStorage() {
+	clearSector(SECTOR_META);
+	setByte(QUNETRA_OS_META, SECTOR_META, 0);
+	setFileCount(0);
+	initSector(SECTOR_ROOT);
+	initSector(SECTOR_FREE);
+	setAddr(SECTOR_FREE, SEC_DATA, SECTOR_FIRST_DATA);
+	flushStorage();
+}
+static uint64 allocSector() {
+	uint64 s = getNext(SECTOR_FREE);
+	if (s) {
+		const uint64 after = getNext(s);
+		setNext(SECTOR_FREE, after);
+	} else {
+		s = getAddr(SECTOR_FREE, SEC_DATA);
+		if (s >= totalSectors) return 0;
+		setAddr(SECTOR_FREE, SEC_DATA, s + 1);
+	}
+	initSector(s);
+	return s;
+}
+static void freeChain(const uint64 first) {
+	const uint64 last = getAddr(first, SEC_LAST), head = getNext(SECTOR_FREE);
+	setNext(last, head);
+	setNext(SECTOR_FREE, first);
+}
+static uint64 appendSector(const uint64 first) {
+	const uint64 n = allocSector();
+	if (!n) return 0;
+	const uint64 last = getAddr(first, SEC_LAST);
+	setNext(last, n);
+	setAddr(first, SEC_LAST, n);
+	return n;
+}
 char* initStorage() {
-	tmpData = kmalloc(512);
-	tmpData2 = kmalloc(512);
 	char* type = getStorageType();
-	sswrite = storageType == 1 ? ata_writeSector : 0;
-	ssread = storageType == 1 ? ata_readSector : 0;
-	const uint8 meta = getByte(0, 0);
-	if (meta != QUNETRA_OS_META) setByte(QUNETRA_OS_META, 0, 0);
-	return storageType == 0 ? " ERROR " : type;
+	if (storageType == 0) return " ERROR ";
+	if (storageType != 1) return type;
+	sswrite = ata_writeSector;
+	ssread = ata_readSector;
+	totalSectors = ata_getSectorCount();
+	if (totalSectors <= SECTOR_FIRST_DATA) return " ERROR ";
+	if (getByte(SECTOR_META, 0) != QUNETRA_OS_META) formatStorage();
+	return type;
 }
-void closeStorage() {
-	kfree(tmpData);
-	kfree(tmpData2);
+static state nameIs(const uint64 sector, const uint16 off, const char* name) {
+	for (uint8 i = 0; i <= NAME_MAX; i++) {
+		const uint8 c = getByte(sector, off + i);
+		if (c != (uint8)name[i]) return false;
+		if (c == '\0') return true;
+	}
+	return false;
 }
+static state findEntry(const uint64 catalog, const char* name, uint64* eSec, uint16* eOff) {
+	for (uint64 s = catalog; s; s = getNext(s)) {
+		for (uint8 i = 0; i < ENTRIES_PER_SECTOR; i++) {
+			const uint16 off = SEC_DATA + i * ENTRY_SIZE;
+			if (!getAddr(s, off)) continue;
+			if (nameIs(s, off + 8, name)) {
+				*eSec = s;
+				*eOff = off;
+				return true;
+			}
+		}
+	}
+	return false;
+}
+static state findFreeSlot(const uint64 catalog, uint64* eSec, uint16* eOff) {
+	uint64 s = catalog;
+	while (true) {
+		for (uint8 i = 0; i < ENTRIES_PER_SECTOR; i++) {
+			const uint16 off = SEC_DATA + i * ENTRY_SIZE;
+			if (!getAddr(s, off)) {
+				*eSec = s;
+				*eOff = off;
+				return true;
+			}
+		}
+		const uint64 next = getNext(s);
+		if (!next) break;
+		s = next;
+	}
+	const uint64 n = appendSector(catalog);
+	if (!n) return false;
+	*eSec = n;
+	*eOff = SEC_DATA;
+	return true;
+}
+static uint64 realCatalog(const uint64 catalog) { return catalog ? catalog : SECTOR_ROOT; }
 
 uint64 createFile(const uint64 catalog, const char* name) {
-	(void)catalog;
-	const uint64 fc = getFileCount();
-	uint64 sts = 1;
-	if (fc) {
-
-	}
-	setAddr(0, 1, fc + 1);
-	return sts;
+	if (!ssread || !name) return 0;
+	const uint64 cat = realCatalog(catalog);
+	const uint len = strLen(name);
+	if (len == 0 || len > NAME_MAX) return 0;
+	uint64 sec;
+	uint16 off;
+	if (findEntry(cat, name, &sec, &off)) return 0;
+	if (!findFreeSlot(cat, &sec, &off)) return 0;
+	const uint64 file = allocSector();
+	if (!file) return 0;
+	setAddr(sec, off, file);
+	for (uint8 i = 0; i <= NAME_MAX; i++) setByte(i < len ? (uint8)name[i] : 0, sec, off + 8 + i);
+	setFileCount(getFileCount() + 1);
+	flushStorage();
+	return file;
 }
-state fwriteb(const uint64 file, uint16 *actByte, const uint8 v) {
-	if (!file || *actByte >= 494) return false;
-
-	(*actByte)++;
+uint64 findFile(const uint64 catalog, const char* name) {
+	if (!ssread || !name) return 0;
+	uint64 sec;
+	uint16 off;
+	if (!findEntry(realCatalog(catalog), name, &sec, &off)) return 0;
+	return getAddr(sec, off);
+}
+state deleteFile(const uint64 catalog, const char* name) {
+	if (!ssread || !name) return false;
+	uint64 sec;
+	uint16 off;
+	if (!findEntry(realCatalog(catalog), name, &sec, &off)) return false;
+	const uint64 file = getAddr(sec, off);
+	freeChain(file);
+	setAddr(sec, off, 0);
+	setFileCount(getFileCount() - 1);
+	flushStorage();
 	return true;
+}
+state fwriteb(const uint64 file, const uint8 v) {
+	if (!ssread || file < SECTOR_FIRST_DATA) return false;
+	uint64 last = getAddr(file, SEC_LAST);
+	uint16 size = getSize(last);
+	if (size >= SEC_DATA_MAX) {
+		last = appendSector(file);
+		if (!last) return false;
+		size = 0;
+	}
+	setByte(v, last, SEC_DATA + size);
+	setSize(last, size + 1);
+	flushStorage();
+	return true;
+}
+state freadb(const uint64 file, const uint64 pos, uint8* out) {
+	if (!ssread || !out || file < SECTOR_FIRST_DATA) return false;
+	uint64 s = file, skip = pos;
+	while (s) {
+		const uint16 size = getSize(s);
+		if (skip < size) {
+			*out = getByte(s, SEC_DATA + (uint16)skip);
+			return true;
+		}
+		skip -= size;
+		s = getNext(s);
+	}
+	return false;
+}
+uint64 fileSize(const uint64 file) {
+	if (!ssread || file < SECTOR_FIRST_DATA) return 0;
+	uint64 total = 0;
+	for (uint64 s = file; s; s = getNext(s)) total += getSize(s);
+	return total;
 }

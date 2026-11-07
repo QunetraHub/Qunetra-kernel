@@ -97,7 +97,6 @@ uint64 getHumanSize(const uint64 sectors, const char** memUnit) {
 	else { *memUnit = " B"; return sectors * 512ULL; }
 	return 0;
 }
-void closeQunetra() { closeStorage(); }
 
 extern void qunetraStart();
 extern void qunetraLoop(const char keyPressed);

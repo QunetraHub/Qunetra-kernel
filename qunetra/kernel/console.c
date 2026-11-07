@@ -108,6 +108,10 @@ void putChar(const char c) {
 		cursorX++;
 		return;
 	}
+	if (c == '\t') {
+		cursorX += 4;
+		return;
+	}
 	if (c == '\r') {
 		cursorX = cursorBorderX;
 		return;
@@ -169,7 +173,7 @@ void putStr(const char *str) { if (consoleDisable) return; while (*str != '\0') 
 static char tmp[65];
 static const char *digits = "0123456789abcdef", *Digits = "0123456789ABCDEF";
 static state du = false;
-static void putNumber(int value, const uint8 base) {
+static void putNumber(int32 value, const uint8 base) {
 	if (consoleDisable) return;
 	if (base != 2 && base != 10 && base != 16) return;
 	if (value == 0) {
@@ -178,7 +182,21 @@ static void putNumber(int value, const uint8 base) {
 	}
 	if (value < 0) putChar('-');
 	value = kabs(value);
-	uint i = 0;
+	uint32 i = 0;
+	while (value > 0) {
+		tmp[i++] = (du ? Digits : digits)[value % base];
+		value /= base;
+	}
+	while (i > 0) putChar(tmp[--i]);
+}
+static void putUNumber(uint32 value, const uint8 base) {
+	if (consoleDisable) return;
+	if (base != 2 && base != 10 && base != 16) return;
+	if (value == 0) {
+		putChar('0');
+		return;
+	}
+	uint32 i = 0;
 	while (value > 0) {
 		tmp[i++] = (du ? Digits : digits)[value % base];
 		value /= base;
@@ -200,40 +218,53 @@ void kprintf(const char *format, ...) {
 		if (*p == '\0') break;
 		switch (*p) {
 			case 's': {
-				const char* s = va_arg(args, const char*);
-				putStr(s);
+				putStr(va_arg(args, const char*));
 				break;
 			}
 			case 'c': {
-				const char v = (char)va_arg(args, int);
-				putChar(v);
+				putChar(va_arg(args, int));
 				break;
 			}
 			case 'd': case 'i': {
-				const int v = va_arg(args, int);
-				putNumber(v, 10);
+				putNumber(va_arg(args, int32), 10);
 				break;
 			}
 			case 'u': {
-				const int v = kabs(va_arg(args, int));
-				putNumber(v, 10);
+				putUNumber(va_arg(args, uint32), 10);
 				break;
 			}
 			case 'x': {
 				du = false;
-				const int v = va_arg(args, int);
-				putNumber(v, 16);
+				putNumber(va_arg(args, int32), 16);
 				break;
 			}
 			case 'X': {
 				du = true;
-				const int v = va_arg(args, int);
-				putNumber(v, 16);
+				putNumber(va_arg(args, int32), 16);
 				break;
 			}
 			case 'q': {
-				const uint8 v = kclamp(va_arg(args, int), 0, 255);
-				setCharColor(v);
+				setCharColor(kclamp(va_arg(args, int), 0, 255));
+				break;
+			}
+			case 'p': {
+				const uint64 v = va_arg(args, uint64);
+				const uint32 oc = charColor;
+				setCharColor(6);
+				putChar('0');
+				putChar('x');
+				state leading = true;
+				for (int8 i = 15; i >= 0; i--) {
+					uint8 nibble = (v >> (i * 4)) & 0xF;
+					if (nibble == 0 && leading && i > 0) {
+						putChar('0');
+					} else {
+						if (leading && nibble != 0) leading = false;
+						if (nibble != 0) setCharColor(9);
+						putChar(digits[nibble]);
+					}
+				}
+				charColor = oc;
 				break;
 			}
 			case '%': { putChar('%'); break; }

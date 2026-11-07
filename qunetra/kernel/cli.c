@@ -17,6 +17,8 @@
  * along with Qunetra. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "../utility/string.h"
+#include "../utility/memory.h"
 #include "../utility/types.h"
 #include "console.h"
 
@@ -53,25 +55,25 @@ state initCLI() {
 	return commands != 0;
 }
 void addCmd(const char* cmd, const void (*action)()) {
-	if (cmdCount >= maxCmd) {
-		char** newCmds = krealloc((maxCmds + QUNETRA_CMDL_STEP) * sizeof(qCmd));
+	if (cmdCount >= maxCount) {
+		qCmd* newCmds = krealloc(commands, (maxCount + QUNETRA_CMDL_STEP) * sizeof(qCmd));
 		commands = newCmds;
 	}
-	commands[cmdCount].cmd = cmd;
-	commands[cmdCount].action = action;
+	// commands[cmdCount].cmd = cmd;
+	// commands[cmdCount].action = action;
 	cmdCount++;
 }
 void runCmd(const char* cmd, uint maxLen) {
 	if (inputLength == 0) return;
 	putChar('\n');
-	const int cmdLen = strFind(cmd, ' ');
+	int cmdLen = strFind(cmd, ' ');
 	if (cmdLen < 0) cmdLen = maxLen;
 	char tmp[cmdLen + 1];
 	strCopyN(tmp, cmd, cmdLen);
-	const uint cmdID = 0;
-	const state cmdFound = false;
+	uint cmdID = 0;
+	state cmdFound = false;
 	for (uint i = 0; i < cmdCount; i++) {
-		if (strIs(tmp, commands[i])) {
+		if (strIs(tmp, commands[i].cmd)) {
 			cmdID = i;
 			cmdFound = true;
 			break;

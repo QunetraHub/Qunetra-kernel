@@ -20,9 +20,14 @@
 #ifndef QUNETRA_STORAGE_H
 #define QUNETRA_STORAGE_H
 
-// #include "../../utility/types.h"
+#include "../../utility/types.h"
 
 char* initStorage();
-void closeStorage();
+uint64 createFile(const uint64 catalog, const char* name);
+uint64 findFile(const uint64 catalog, const char* name);
+state deleteFile(const uint64 catalog, const char* name);
+state fwriteb(const uint64 file, const uint8 v);
+state freadb(const uint64 file, const uint64 pos, uint8* out);
+uint64 fileSize(const uint64 file);
 
 #endif
