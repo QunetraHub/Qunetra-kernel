@@ -29,6 +29,9 @@
 #ifndef QUNETRA_CMDL_STEP
 #define QUNETRA_CMDL_STEP 16
 #endif
+#ifndef QUNETRA_MAX_COMMANDS
+#define QUNETRA_MAX_COMMANDS 32
+#endif
 
 static uint16 inputLength = 0;
 static char input[QUNETRA_CMD_MAX_LEN + 1];
@@ -47,7 +50,7 @@ void setCLIState(const state _state) {
 }
 typedef struct {
 	const char* cmd;
-	void (*action)();
+	void (*action)(const char*);
 } qCmd;
 static qCmd* commands = 0;
 static uint cmdCount = 0, maxCount = QUNETRA_CMDL_STEP;
@@ -61,15 +64,16 @@ void addCmd(const char* cmd, void (*action)()) {
 	commands[cmdCount].action = action;
 	cmdCount++;
 }
-static void _qc_ls() {
-	listFiles(1);
-}
+
+static void _qc_showFiles(const char* args) { (void)args; listFiles(1); }
+static void _qc_createFile(const char* args) { if (createFile(1, args)) kprintf("Created file '%s'\n", args); }
 state initCLI() {
 	commands = kmalloc(QUNETRA_CMDL_STEP * sizeof(qCmd));
-	addCmd("ls", _qc_ls);
+	addCmd("sf", _qc_showFiles);
+	addCmd("cf", _qc_createFile);
 	return commands != 0;
 }
-void runCmd(const char* cmd, uint16 maxLen) {
+void runCmd(char* cmd, uint16 maxLen) {
 	if (inputLength == 0) return;
 	putChar('\n');
 	int cmdLen = strFind(cmd, ' ');
@@ -91,7 +95,10 @@ void runCmd(const char* cmd, uint16 maxLen) {
 		input[0] = '\0';
 		return;
 	}
-	if (commands[cmdID].action) commands[cmdID].action();
+	if (commands[cmdID].action) {
+		strShiftLeft(cmd, strLen(cmd) + 1, cmdLen + 1);
+		commands[cmdID].action(cmd);
+	}
 	inputLength = 0;
 	input[0] = '\0';
 }

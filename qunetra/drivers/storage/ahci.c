@@ -61,23 +61,10 @@
 #define AHCI_CMD_TIMEOUT 50000000
 #endif
 
+typedef struct __attribute__((packed)) { uint32 dw0, prdbc, ctba, ctbau, reserved[4]; } cmdHeader;
+typedef struct __attribute__((packed)) { uint32 dba, dbau, reserved, dbc; } prdtEntry;
 typedef struct __attribute__((packed)) {
-	uint32 dw0;
-	uint32 prdbc;
-	uint32 ctba;
-	uint32 ctbau;
-	uint32 reserved[4];
-} cmdHeader;
-typedef struct __attribute__((packed)) {
-	uint32 dba;
-	uint32 dbau;
-	uint32 reserved;
-	uint32 dbc;
-} prdtEntry;
-typedef struct __attribute__((packed)) {
-	uint8 cfis[64];
-	uint8 acmd[16];
-	uint8 reserved[48];
+	uint8 cfis[64], acmd[16], reserved[48];
 	prdtEntry prdt[1];
 } cmdTable;
 

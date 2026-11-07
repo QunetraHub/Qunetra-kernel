@@ -5,7 +5,7 @@
 
 #define VER_MAJOR      0
 #define VER_MINOR      7
-#define VER_PATCH      1
+#define VER_PATCH      2
 #define VER_REVISION   0
 
 #define VER_YEAR       26
@@ -19,7 +19,7 @@
 _STRINGIFY(VER_MAJOR)    "." \
 _STRINGIFY(VER_MINOR)    "." \
 _STRINGIFY(VER_PATCH)    "." \
-_STRINGIFY(VER_REVISION) "-" \
+_STRINGIFY(VER_REVISION) ":" \
 _STRINGIFY(VER_YEAR)     "." \
 _STRINGIFY(VER_MONTH)    "." \
 _STRINGIFY(VER_DAY)
