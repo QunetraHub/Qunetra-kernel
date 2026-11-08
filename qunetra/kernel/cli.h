@@ -22,6 +22,19 @@
 
 #include "../utility/types.h"
 
+// new qunetra command
+#define __nqc__(cmd) static void cmd(const int argc, char** argv)
+// add qunetra command
+#define __aqc__(cmd, desc) addCmd(#cmd, desc, cmd)
+// qunetra command correct use
+#define __qccu__(min, arg) if (argc <= min) { kprintf("%qPlease use '%s " arg "'\n", 20, argv[0]); return; }
+// qunetra command disable count
+#define __qcdc__ (void)argc;
+// qunetra command disable values
+#define __qcdv__ (void)argv;
+// qunetra command disable count & values
+#define __qcdb__ (void)argc; (void)argv;
+
 typedef void (*cliAction)(const int argc, char** argv);
 
 state initCLI();

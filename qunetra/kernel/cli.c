@@ -28,7 +28,7 @@
 #define QUNETRA_CMD_MAX_LEN 128
 #endif
 #ifndef QUNETRA_CLI_MAX_ARGS
-#define QUNETRA_CLI_MAX_ARGS 16
+#define QUNETRA_CLI_MAX_ARGS 32
 #endif
 #ifndef QUNETRA_CLI_MAX_CMDS
 #define QUNETRA_CLI_MAX_CMDS 32
@@ -43,23 +43,16 @@
 #define QUNETRA_CLI_PROMPT_COLOR 150
 #endif
 
-#define __qc__ static void
-#define __qca__ const int argc, char** argv
-
-// ===== State =====
-static uint16 inputLength = 0;
-static char input[QUNETRA_CMD_MAX_LEN + 1];
-static state CLIDisabled = false, needPrompt = false;
-
 typedef struct {
 	const char* name, *help;
 	cliAction action;
 } qCmd;
-static qCmd commands[QUNETRA_CLI_MAX_CMDS];
-static uint cmdCount = 0;
 
-static char history[QUNETRA_CLI_HISTORY][QUNETRA_CMD_MAX_LEN + 1], draft[QUNETRA_CMD_MAX_LEN + 1];
-static uint histCount = 0, histHead = 0, histPos = 0;
+static uint16 inputLength = 0;
+static char input[QUNETRA_CMD_MAX_LEN + 1], history[QUNETRA_CLI_HISTORY][QUNETRA_CMD_MAX_LEN + 1], draft[QUNETRA_CMD_MAX_LEN + 1];
+static state CLIDisabled = false, needPrompt = false;
+static qCmd commands[QUNETRA_CLI_MAX_CMDS];
+static uint cmdCount = 0, histCount = 0, histHead = 0, histPos = 0;
 
 static void printPrompt() { kprintf("%q%s%q", QUNETRA_CLI_PROMPT_COLOR, QUNETRA_CLI_PROMPT, 13); }
 static void eraseLine() {
@@ -94,7 +87,6 @@ state addCmd(const char* name, const char* help, cliAction action) {
 	cmdCount++;
 	return true;
 }
-
 static int tokenize(char* s, char** argv, const int maxArgs) {
 	int argc = 0;
 	char* w = s;
@@ -121,7 +113,6 @@ static int tokenize(char* s, char** argv, const int maxArgs) {
 	argv[argc] = 0;
 	return argc;
 }
-
 state runCmd(const char* line) {
 	if (!line) return false;
 	char work[QUNETRA_CMD_MAX_LEN + 1], *argv[QUNETRA_CLI_MAX_ARGS + 1];
@@ -146,7 +137,7 @@ state runCmd(const char* line) {
 	return false;
 }
 
-__qc__ cmdHelp(__qca__) {
+__nqc__(help) {
 	if (argc > 1) {
 		for (uint i = 0; i < cmdCount; i++) {
 			if (strIs(commands[i].name, argv[1])) {
@@ -162,16 +153,17 @@ __qc__ cmdHelp(__qca__) {
 	for (uint i = 0; i < cmdCount; i++) {
 		kprintf("%s", commands[i].name);
 		for (uint k = strLen(commands[i].name); k < width + 2; k++) putChar(' ');
-		kprintf("- %s\n", commands[i].help ? commands[i].help : "");
+		kprintf("%q- %s\n", 8, commands[i].help ? commands[i].help : "");
 	}
 }
-__qc__ cmdEcho(__qca__) {
+__nqc__(echo) {
 	for (int i = 1; i < argc; i++) {
 		if (i > 1) putChar(' ');
 		kprintf("%s", argv[i]);
 	}
 	putChar('\n');
 }
+
 state initCLI() {
 	cmdCount = 0;
 	histCount = 0;
@@ -179,10 +171,8 @@ state initCLI() {
 	histPos = 0;
 	eraseLine();
 	needPrompt = true;
-	const state ok = addCmd("help", "list commands, 'help <command>' shows one", cmdHelp);
-	return addCmd("echo", "print the arguments", cmdEcho) && ok;
+	return __aqc__(help, "list commands, 'help <command>' shows one") && __aqc__(echo, "print the arguments");
 }
-
 static const char* historyEntry(const uint k) { return history[(histHead + QUNETRA_CLI_HISTORY - k) % QUNETRA_CLI_HISTORY]; }
 static void addHistory() {
 	if (histCount > 0 && strIs(historyEntry(1), input)) return;
@@ -201,7 +191,6 @@ static void historyDown() {
 	histPos--;
 	setLine(histPos == 0 ? draft : historyEntry(histPos));
 }
-
 static void complete() {
 	for (uint i = 0; i < inputLength; i++) if (input[i] == ' ') return;
 	uint matches = 0, first = 0;
@@ -240,7 +229,6 @@ static void complete() {
 	printPrompt();
 	for (uint i = 0; i < inputLength; i++) putChar(input[i]);
 }
-
 void setCharCLI(const char c) {
 	if (CLIDisabled) return;
 	if (needPrompt) {
@@ -283,19 +271,11 @@ void setCharCLI(const char c) {
 	input[inputLength] = '\0';
 	histPos = 0;
 }
-
-__qc__ list(__qca__) {
-	(void)argc; (void)argv;
-	listFiles(1);
-}
-__qc__ cat(__qca__) {
-	if (argc <= 1) {
-		kprintf("%qPlease use 'cat <filename>'\n", 20);
-		return;
-	}
+__nqc__(ls) { __qcdb__ listFiles(1); }
+__nqc__(cat) { __qccu__(1, "<filename>")
 	const uint64 fs = findFile(1, argv[1]);
 	if (!fs) {
-		kprintf("%qFile '%s' was not found'\n", 20, argv[1]);
+		kprintf("%qFile '%s' was not found\n", 20, argv[1]);
 		return;
 	}
 	if (fileSize(fs)) {
@@ -305,7 +285,17 @@ __qc__ cat(__qca__) {
 	} else kprintf("%qThe file is empty", 6);
 	putChar('\n');
 }
+__nqc__(touch) { __qccu__(1, "<filename>")
+	const uint64 fs = findFile(1, argv[1]);
+	if (fs) {
+		kprintf("%qFile '%s' already exists!\n", 20, argv[1]);
+		return;
+	}
+	createFile(1, argv[1]);
+}
+
 void addQunetraBaseCommands() {
-	addCmd("ls", "List files in the current directory", list);
-	addCmd("cat", "Display the content of a file", cat);
+	__aqc__(ls, "List files in the current directory");
+	__aqc__(cat, "Display the content of a file");
+	__aqc__(touch, "Create a new empty file");
 }

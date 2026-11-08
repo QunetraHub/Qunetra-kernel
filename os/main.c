@@ -8,7 +8,6 @@
 #define QUNETRA_CLI
 #include "qunetra.h" // IWYU pragma: keep
 
-#define FILE "hello.txt"
 // Calls functions before the loop
 void qunetraStart() {
 	addQunetraBaseCommands();
