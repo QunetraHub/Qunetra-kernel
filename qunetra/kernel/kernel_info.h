@@ -4,8 +4,8 @@
 #define KERNEL_NAME "Qunetra"
 
 #define VER_MAJOR      0
-#define VER_MINOR      7
-#define VER_PATCH      3
+#define VER_MINOR      8
+#define VER_PATCH      0
 #define VER_REVISION   0
 
 #define VER_YEAR       26

@@ -360,7 +360,13 @@ void listFiles(const uint64 catalog) {
 			if (file_id != 0) {
 				for (uint8 j = 0; j <= NAME_MAX; j++) name[j] = (char)getByte(s, off + 8 + j);
 				name[NAME_MAX] = '\0';
-				kprintf("> %s [ %p ]-[ %u B ]\n", name, file_id, fileSize(file_id));
+				kprintf("-> %s ", name);
+				const uint nameLen = strLen(name);
+				if (nameLen < NAME_MAX) {
+					setCharColor(6);
+					for (uint8 i = 0; i < NAME_MAX - nameLen; i++) putChar('.');
+				}
+				kprintf("[ %p ]: %q%u B\n", file_id, 9, fileSize(file_id));
 			}
 		}
 	}

@@ -48,5 +48,8 @@
 #ifdef QUNETRA_STORAGE
 #include "../qunetra/drivers/storage/storage.h"
 #endif
+#ifdef QUNETRA_CLI
+#include "../qunetra/kernel/cli.h"
+#endif
 
 #endif

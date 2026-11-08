@@ -17,12 +17,21 @@
  * along with Qunetra. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef QUNETRA_KEYBOARD_H
-#define QUNETRA_KEYBOARD_H
+#ifndef KEYBOARD_H
+#define KEYBOARD_H
 
 #include "../utility/types.h"
 
-char keyboardGet();
+#define KEY_ESC    '\x1b'
+#define KEY_UP     '\x11'
+#define KEY_DOWN   '\x12'
+#define KEY_LEFT   '\x13'
+#define KEY_RIGHT  '\x14'
+#define KEY_HOME   '\x15'
+#define KEY_END    '\x16'
+#define KEY_DELETE '\x7f'
+
 state initKeyboard();
+char keyboardGet();
 
 #endif
