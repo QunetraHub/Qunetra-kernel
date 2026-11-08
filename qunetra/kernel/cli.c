@@ -295,6 +295,7 @@ __nqc__(rm) { __qccu__(1, "<filename>")
 }
 __nqc__(stat) { __qccu__(1, "<filename>")
 	__getFile_TF__(1)
+	kprintf("ID: %p | Size: %uB\n", fs, fileSize(fs));
 }
 
 void addQunetraBaseCommands() {
