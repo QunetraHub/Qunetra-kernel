@@ -128,7 +128,7 @@ void kernel_main(const uint32 magic, const uint32 addr) {
 	prtVal("Sectors", sectors, "");
 	prtVal("Disk memory", diskMem, memUnit);
 	kprintf("%q=-= %qUtility %q=-=\n", 4, 13, 4);
-	prtStateNxN("string.h", stringTest(), 20);
+	prtStateNxN("string.h", stringTest(), 22);
 	prtStateNxN("memory.h", memoryTest(), 3);
 	prtStateNxN("math.h", mathTest() * 2, 10);
 	prtStateNxN("bits.h", bitsTest(), 3);

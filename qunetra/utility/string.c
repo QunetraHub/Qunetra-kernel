@@ -252,6 +252,29 @@ void strConvertV(char* buf, const uint size, const char* format, va_list args) {
 		}
 	}
 }
+int strToInt(const char* str) {
+	int result = 0;
+	int8 sign = 1;
+	while (*str == ' ' || *str == '\t') str++;
+	if (*str == '-') {
+		sign = -1;
+		str++;
+	} else if (*str == '+') str++;
+	while (*str >= '0' && *str <= '9') {
+		result = result * 10 + (*str - '0');
+		str++;
+	}
+	return result * sign;
+}
+uint strToUInt(const char* str) {
+	uint result = 0;
+	while (*str == ' ' || *str == '\t') str++;
+	while (*str >= '0' && *str <= '9') {
+		result = result * 10 + (*str - '0');
+		str++;
+	}
+	return result;
+}
 void strConvert(char* buf, const uint size, const char* format, ...) {
 	va_list args;
 	va_start(args, format);
@@ -298,6 +321,8 @@ uint stringTest() {
 	strAddNum(temp, 16, &i, 23, 2);
 	strAddNum(temp, 16, &i, 23, 10);
 	strAddNum(temp, 16, &i, 23, 16);
+	x += strToInt("-81126") == -81126 && strToInt("1557") == 1557;
+	x += strToUInt("20012711") == 20012711;
 	x += strIs(temp, "101112317");
 	strConvert(temp, 16, "%s%c%d%u%x%X%%%t", "xD", 'd', 12, -5, 13, 14);
 	x += strIs(temp, "xDd125dE%%t");

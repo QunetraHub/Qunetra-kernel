@@ -91,8 +91,8 @@ static void scanPci() {
 #define SEC_DATA_MAX 494
 
 #define SECTOR_META 0
-#define SECTOR_ROOT 1
-#define SECTOR_FREE 2
+#define SECTOR_ROOT 2
+#define SECTOR_FREE 1
 #define SECTOR_FIRST_DATA 3
 
 #define ENTRY_SIZE 40
@@ -161,7 +161,7 @@ static void initSector(const uint64 sector) {
 	setAddr(sector, SEC_LAST, sector);
 }
 
-static uint64 getFileCount() { return getAddr(SECTOR_META, 1); }
+uint64 getFileCount() { return getAddr(SECTOR_META, 1); }
 static void setFileCount(const uint64 v) { setAddr(SECTOR_META, 1, v); }
 
 static void formatStorage() {
@@ -268,8 +268,7 @@ static state findFreeSlot(const uint64 catalog, uint64* eSec, uint16* eOff) {
 	*eOff = SEC_DATA;
 	return true;
 }
-static uint64 realCatalog(const uint64 catalog) { return catalog ? catalog : SECTOR_ROOT; }
-
+uint64 realCatalog(const uint64 catalog) { return catalog >= SECTOR_ROOT ? catalog : SECTOR_ROOT; }
 uint64 createFile(const uint64 catalog, const char* name) {
 	if (!ssread || !name) return 0;
 	const uint64 cat = realCatalog(catalog);

@@ -22,9 +22,11 @@
 
 #include "../../utility/types.h"
 
+uint64 getFileCount();
 char* initStorage();
 uint64 storageSectors();
 uint64 createFile(const uint64 catalog, const char* name);
+uint64 realCatalog(const uint64 catalog);
 uint64 findFile(const uint64 catalog, const char* name);
 state deleteFile(const uint64 catalog, const char* name);
 state fwriteb(const uint64 file, const uint8 v);

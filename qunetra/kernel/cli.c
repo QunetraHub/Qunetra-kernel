@@ -20,6 +20,8 @@
 #include "../drivers/storage/storage.h"
 #include "../utility/string.h"
 #include "../utility/types.h"
+#include "../drivers/lfb.h"
+#include "kernel_info.h"
 #include "keyboard.h"
 #include "console.h"
 #include "cli.h"
@@ -36,8 +38,11 @@
 #ifndef QUNETRA_CLI_HISTORY
 #define QUNETRA_CLI_HISTORY 8
 #endif
+#ifndef QUNETRA_CLI_DIR_COLOR
+#define QUNETRA_CLI_DIR_COLOR 4
+#endif
 #ifndef QUNETRA_CLI_PROMPT
-#define QUNETRA_CLI_PROMPT "> "
+#define QUNETRA_CLI_PROMPT " > "
 #endif
 #ifndef QUNETRA_CLI_PROMPT_COLOR
 #define QUNETRA_CLI_PROMPT_COLOR 150
@@ -53,8 +58,9 @@ static char input[QUNETRA_CMD_MAX_LEN + 1], history[QUNETRA_CLI_HISTORY][QUNETRA
 static state CLIDisabled = false, needPrompt = false;
 static qCmd commands[QUNETRA_CLI_MAX_CMDS];
 static uint cmdCount = 0, histCount = 0, histHead = 0, histPos = 0;
+static uint64 curDir = 2;
 
-static void printPrompt() { kprintf("%q%s%q", QUNETRA_CLI_PROMPT_COLOR, QUNETRA_CLI_PROMPT, 13); }
+static void printPrompt() { kprintf("%q%u%q" QUNETRA_CLI_PROMPT "%q", QUNETRA_CLI_DIR_COLOR, (uint32)curDir - 1, QUNETRA_CLI_PROMPT_COLOR, 13); }
 static void eraseLine() {
 	while (inputLength > 0) {
 		putChar('\b');
@@ -163,7 +169,12 @@ __nqc__(echo) {
 	}
 	putChar('\n');
 }
-static uint64 curDir = 1;
+__nqc__(info) { __qcdb__
+	kprintf("Kernel: " KERNEL_NAME "\n");
+	kprintf("Version: " KERNEL_VERSION_STR "\n");
+	kprintf("Total files: %u\n", getFileCount());
+	kprintf("Disk sectors: %u\n", storageSectors());
+}
 
 state initCLI() {
 	cmdCount = 0;
@@ -172,7 +183,10 @@ state initCLI() {
 	histPos = 0;
 	eraseLine();
 	needPrompt = true;
-	return __aqc__(help, "list commands, 'help <command>' shows one") && __aqc__(echo, "print the arguments");
+	return
+		__aqc__(help, "list commands, 'help <command>' shows one") &&
+		__aqc__(echo, "print the arguments") &&
+		__aqc__(info, "Display kernel version and system info");
 }
 static const char* historyEntry(const uint k) { return history[(histHead + QUNETRA_CLI_HISTORY - k) % QUNETRA_CLI_HISTORY]; }
 static void addHistory() {
@@ -272,8 +286,8 @@ void setCharCLI(const char c) {
 	input[inputLength] = '\0';
 	histPos = 0;
 }
-#define __getFile_TF__(fi) const uint64 fs = findFile(curDir, argv[fi]); if (!fs) { kprintf("%qFile '%s' was not found\n", 20, argv[1]); return; }
-#define __getFile_TC__(fi) const uint64 fs = findFile(curDir, argv[fi]); if (fs) { kprintf("%qFile '%s' already exists!\n", 20, argv[1]); return; }
+#define __getFile_TF__(fi) const uint64 fs = findFile(curDir, argv[fi]); if (!fs) { kprintf("%qFile '%s' was not found\n", 20, argv[fi]); return; }
+#define __getFile_TC__(fi) const uint64 fs = findFile(curDir, argv[fi]); if (fs) { kprintf("%qFile '%s' already exists!\n", 20, argv[fi]); return; }
 
 __nqc__(ls) { __qcdb__ listFiles(curDir); }
 __nqc__(cat) { __qccu__(1, "<filename>")
@@ -297,6 +311,8 @@ __nqc__(stat) { __qccu__(1, "<filename>")
 	__getFile_TF__(1)
 	kprintf("ID: %p | Size: %uB\n", fs, fileSize(fs));
 }
+__nqc__(clear) { __qcdb__ lfbFill(0); }
+__nqc__(cd) { __qccu__(1, "<dir ID>") curDir = realCatalog(strToUInt(argv[1]) + 1); }
 
 void addQunetraBaseCommands() {
 	__aqc__(ls, "List files in the current directory");
@@ -304,4 +320,6 @@ void addQunetraBaseCommands() {
 	__aqc__(touch, "Create a new empty file");
 	__aqc__(rm, "Delete a specified file");
 	__aqc__(stat, "Show file metadata (size & ID)");
+	__aqc__(clear, "Clear the console screen");
+	__aqc__(cd, "Change the current working directory");
 }
