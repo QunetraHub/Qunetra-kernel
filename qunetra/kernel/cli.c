@@ -163,6 +163,7 @@ __nqc__(echo) {
 	}
 	putChar('\n');
 }
+static uint64 curDir = 1;
 
 state initCLI() {
 	cmdCount = 0;
@@ -271,13 +272,12 @@ void setCharCLI(const char c) {
 	input[inputLength] = '\0';
 	histPos = 0;
 }
-__nqc__(ls) { __qcdb__ listFiles(1); }
+#define __getFile_TF__(fi) const uint64 fs = findFile(curDir, argv[fi]); if (!fs) { kprintf("%qFile '%s' was not found\n", 20, argv[1]); return; }
+#define __getFile_TC__(fi) const uint64 fs = findFile(curDir, argv[fi]); if (fs) { kprintf("%qFile '%s' already exists!\n", 20, argv[1]); return; }
+
+__nqc__(ls) { __qcdb__ listFiles(curDir); }
 __nqc__(cat) { __qccu__(1, "<filename>")
-	const uint64 fs = findFile(1, argv[1]);
-	if (!fs) {
-		kprintf("%qFile '%s' was not found\n", 20, argv[1]);
-		return;
-	}
+	__getFile_TF__(1)
 	if (fileSize(fs)) {
 		uint64 i = 0;
 		uint8 v = 0;
@@ -286,16 +286,21 @@ __nqc__(cat) { __qccu__(1, "<filename>")
 	putChar('\n');
 }
 __nqc__(touch) { __qccu__(1, "<filename>")
-	const uint64 fs = findFile(1, argv[1]);
-	if (fs) {
-		kprintf("%qFile '%s' already exists!\n", 20, argv[1]);
-		return;
-	}
-	createFile(1, argv[1]);
+	__getFile_TC__(1)
+	createFile(curDir, argv[1]);
+}
+__nqc__(rm) { __qccu__(1, "<filename>")
+	__getFile_TF__(1)
+	deleteFile(curDir, argv[1]);
+}
+__nqc__(stat) { __qccu__(1, "<filename>")
+	__getFile_TF__(1)
 }
 
 void addQunetraBaseCommands() {
 	__aqc__(ls, "List files in the current directory");
 	__aqc__(cat, "Display the content of a file");
 	__aqc__(touch, "Create a new empty file");
+	__aqc__(rm, "Delete a specified file");
+	__aqc__(stat, "Show file metadata (size & ID)");
 }
