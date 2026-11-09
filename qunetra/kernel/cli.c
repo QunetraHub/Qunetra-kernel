@@ -108,7 +108,19 @@ static int tokenize(char* s, char** argv, const int maxArgs) {
 				s++;
 				continue;
 			}
-			if (*s == '\\' && s[1] != '\0') s++;
+			if (*s == '\\' && s[1] != '\0') {
+				s++;
+				const char esc = *s++;
+				switch (esc) {
+					case 'n': *w++ = '\n'; break;
+					case 't': *w++ = '\t'; break;
+					case 'r': *w++ = '\r'; break;
+					case '\\': *w++ = '\\'; break;
+					case '"': *w++ = '"'; break;
+					default: *w++ = '\\'; *w++ = esc; break;
+				}
+				continue;
+			}
 			*w++ = *s++;
 		}
 		if (quoted) return -2;
@@ -286,8 +298,10 @@ void setCharCLI(const char c) {
 	input[inputLength] = '\0';
 	histPos = 0;
 }
-#define __getFile_TF__(fi) const uint64 fs = findFile(curDir, argv[fi]); if (!fs) { kprintf("%qFile '%s' was not found\n", 20, argv[fi]); return; }
-#define __getFile_TC__(fi) const uint64 fs = findFile(curDir, argv[fi]); if (fs) { kprintf("%qFile '%s' already exists!\n", 20, argv[fi]); return; }
+#define __getFile_TF__(i)  const uint64 fs = findFile(curDir, argv[i]); if (!fs) { kprintf("%qFile '%s' was not found\n", 20, argv[i]); return; }
+#define __getFile_TF_for__ const uint64 fs = findFile(curDir, argv[i]); if (!fs) { kprintf("%qFile '%s' was not found\n", 20, argv[i]); continue; }
+#define __getFile_TC__(i)  const uint64 fs = findFile(curDir, argv[i]); if (fs) { kprintf("%qFile '%s' already exists!\n", 20, argv[i]); return; }
+#define __getFile_TC_for__ const uint64 fs = findFile(curDir, argv[i]); if (fs) { kprintf("%qFile '%s' already exists!\n", 20, argv[i]); continue; }
 
 __nqc__(ls) { __qcdb__ listFiles(curDir); }
 __nqc__(cat) { __qccu__(1, "<filename>")
@@ -300,12 +314,16 @@ __nqc__(cat) { __qccu__(1, "<filename>")
 	putChar('\n');
 }
 __nqc__(touch) { __qccu__(1, "<filename>")
-	__getFile_TC__(1)
-	createFile(curDir, argv[1]);
+	for (int i = 1; i < argc; i++) {
+		__getFile_TC_for__
+		createFile(curDir, argv[i]);
+	}
 }
 __nqc__(rm) { __qccu__(1, "<filename>")
-	__getFile_TF__(1)
-	deleteFile(curDir, argv[1]);
+	for (int i = 1; i < argc; i++) {
+		__getFile_TF_for__
+		deleteFile(curDir, argv[i]);
+	}
 }
 __nqc__(stat) { __qccu__(1, "<filename>")
 	__getFile_TF__(1)
@@ -313,6 +331,20 @@ __nqc__(stat) { __qccu__(1, "<filename>")
 }
 __nqc__(clear) { __qcdb__ lfbFill(0); }
 __nqc__(cd) { __qccu__(1, "<dir ID>") curDir = realCatalog(strToUInt(argv[1]) + 1); }
+__nqc__(write) { __qccu__(2, "<filename> <data>")
+	__getFile_TF__(1)
+	for (int i = 2; i < argc; i++) {
+		kfwrite(fs, argv[i]);
+		if (i < argc - 1) fwriteb(fs, ' ');
+	}
+}
+__nqc__(trunc) { __qccu__(1, "<filename>")
+	for (int i = 1; i < argc; i++) {
+		__getFile_TF_for__
+		deleteFile(curDir, argv[i]);
+		createFile(curDir, argv[i]);
+	}
+}
 
 void addQunetraBaseCommands() {
 	__aqc__(ls, "List files in the current directory");
@@ -322,4 +354,6 @@ void addQunetraBaseCommands() {
 	__aqc__(stat, "Show file metadata (size & ID)");
 	__aqc__(clear, "Clear the console screen");
 	__aqc__(cd, "Change the current working directory");
+	__aqc__(write, "Append text to a specified file");
+	__aqc__(trunc, "Clear file contents (truncate to 0 bytes)");
 }

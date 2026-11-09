@@ -281,6 +281,16 @@ void strConvert(char* buf, const uint size, const char* format, ...) {
 	strConvertV(buf, size, format, args);
 	va_end(args);
 }
+uint64 getHumanSize(const uint64 value, const char** memUnit) {
+	if (!memUnit) return 0;
+	if (value >= 1125899906842624ULL) { *memUnit = " PiB"; return value / 1125899906842624ULL; }
+	else if (value >= 1099511627776ULL) { *memUnit = " TiB"; return value / 1099511627776ULL; }
+	else if (value >= 1073741824ULL) { *memUnit = " GiB"; return value / 1073741824ULL; }
+	else if (value >= 1048576ULL) { *memUnit = " MiB"; return value / 1048576ULL; }
+	else if (value >= 1024ULL) { *memUnit = " KiB"; return value / 1024ULL; }
+	else { *memUnit = " B"; return value; }
+}
+
 uint stringTest() {
 	uint x = 0;
 	x += strLen("Hello, World!") == 13;
@@ -326,5 +336,7 @@ uint stringTest() {
 	x += strIs(temp, "101112317");
 	strConvert(temp, 16, "%s%c%d%u%x%X%%%t", "xD", 'd', 12, -5, 13, 14);
 	x += strIs(temp, "xDd125dE%%t");
+	const char* unit = 0;
+	x += getHumanSize(49213, &unit) == 48 && strIs(unit, " KiB");
 	return x;
 }

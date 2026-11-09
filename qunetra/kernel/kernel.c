@@ -87,14 +87,14 @@ static void prtVal(const char* name, const uint v, const char* type) {
 	for (int i = 0; i < s; i++) putChar(' ');
 	kprintf("%q[%q%d%s%q]\n", 4, 8, v, type, 4);
 }
-uint64 getHumanSize(const uint64 sectors, const char** memUnit) {
+
+uint64 getSectorSize(const uint64 sectors, const char** memUnit) {
 	if (sectors >= 2199023255552ULL) { *memUnit = " PiB"; return sectors / 2199023255552ULL; }
 	else if (sectors >= 2147483648ULL) { *memUnit = " TiB"; return sectors / 2147483648ULL; }
 	else if (sectors >= 2097152ULL) { *memUnit = " GiB"; return sectors / 2097152ULL; }
 	else if (sectors >= 2048ULL) { *memUnit = " MiB"; return sectors / 2048ULL; }
 	else if (sectors >= 2ULL) { *memUnit = " KiB"; return sectors / 2ULL; }
 	else { *memUnit = " B"; return sectors * 512ULL; }
-	return 0;
 }
 
 extern void qunetraStart();
@@ -123,7 +123,7 @@ void kernel_main(const uint32 magic, const uint32 addr) {
 	kprintf("%q=-= %qStorage %q=-=\n", 4, 13, 4);
 	prtCustom("Controller", initStorage());
 	const char* memUnit;
-	const uint64 sectors = storageSectors(), diskMem = getHumanSize(sectors, &memUnit);
+	const uint64 sectors = storageSectors(), diskMem = getSectorSize(sectors, &memUnit);
 	prtVal("Sectors", sectors, "");
 	prtVal("Disk memory", diskMem, memUnit);
 	kprintf("%q=-= %qNetwork %q=-=\n", 4, 13, 4);
@@ -134,7 +134,7 @@ void kernel_main(const uint32 magic, const uint32 addr) {
 		prtState("Link", netLinkUp());
 	}
 	kprintf("%q=-= %qUtility %q=-=\n", 4, 13, 4);
-	prtStateNxN("string.h", stringTest(), 22);
+	prtStateNxN("string.h", stringTest(), 23);
 	prtStateNxN("memory.h", memoryTest(), 3);
 	prtStateNxN("math.h", mathTest() * 2, 10);
 	prtStateNxN("bits.h", bitsTest(), 3);
