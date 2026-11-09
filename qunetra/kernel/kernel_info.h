@@ -10,7 +10,7 @@
 
 #define VER_YEAR       26
 #define VER_MONTH      11
-#define VER_DAY        8
+#define VER_DAY        9
 
 #define _STRINGIFY2(x) #x
 #define _STRINGIFY(x)  _STRINGIFY2(x)
