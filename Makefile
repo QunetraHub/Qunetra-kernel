@@ -68,6 +68,7 @@ run: all $(IMG)
 	@qemu-system-i386 -cdrom $(BIN_DIR)/$(ISO) -boot d \
 		-device VGA,xres=1280,yres=720 -display gtk,zoom-to-fit=off \
 		$(DRIVE_ARGS) \
+		-netdev user,id=net0 -device e1000,netdev=net0 \
 		-d int,cpu_reset -D qemu.log
 
 $(BIN_DIR)/$(ISO): $(KERNEL) grub.cfg

@@ -17,20 +17,19 @@
  * along with Qunetra. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "../drivers/storage/storage.h"
+#include "../drivers/net/net.h"
 #include "../utility/string.h"
 #include "../utility/memory.h"
 #include "../utility/types.h"
 #include "../utility/math.h"
 #include "../utility/bits.h"
 #include "../utility/cpu.h"
-
 #include "../drivers/lfb.h"
-#include "../drivers/storage/storage.h"
-
-#include "console.h"
-#include "cli.h"
 #include "interrupts.h"
 #include "keyboard.h"
+#include "console.h"
+#include "cli.h"
 
 #define DISTANCE 35
 static void prtState(const char* name, const state stat) {
@@ -127,6 +126,13 @@ void kernel_main(const uint32 magic, const uint32 addr) {
 	const uint64 sectors = storageSectors(), diskMem = getHumanSize(sectors, &memUnit);
 	prtVal("Sectors", sectors, "");
 	prtVal("Disk memory", diskMem, memUnit);
+	kprintf("%q=-= %qNetwork %q=-=\n", 4, 13, 4);
+	const state net = netInit();
+	prtState("e1000", net);
+	if (net) {
+		prtCustom("MAC", netMacString());
+		prtState("Link", netLinkUp());
+	}
 	kprintf("%q=-= %qUtility %q=-=\n", 4, 13, 4);
 	prtStateNxN("string.h", stringTest(), 22);
 	prtStateNxN("memory.h", memoryTest(), 3);

@@ -45,8 +45,8 @@
 #ifdef QUNETRA_FS
 #include "../qunetra/drivers/storage/storage.h"
 #endif
-#ifdef QUNETRA_STORAGE
-#include "../qunetra/drivers/storage/storage.h"
+#ifdef QUNETRA_NET
+#include "../qunetra/drivers/net/net.h"
 #endif
 #ifdef QUNETRA_CLI
 #include "../qunetra/kernel/cli.h"
