@@ -4,13 +4,13 @@
 #define KERNEL_NAME "Qunetra"
 
 #define VER_MAJOR      0
-#define VER_MINOR      9
-#define VER_PATCH      1
-#define VER_REVISION   0
+#define VER_MINOR      14
+#define VER_PATCH      3
+#define VER_REVISION   11
 
 #define VER_YEAR       26
 #define VER_MONTH      11
-#define VER_DAY        9
+#define VER_DAY        20
 
 #define _STRINGIFY2(x) #x
 #define _STRINGIFY(x)  _STRINGIFY2(x)

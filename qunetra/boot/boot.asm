@@ -105,5 +105,5 @@ gdt_descriptor:
 section .bss
 align 16
 stack_bottom:
-	resb 16384
+	resb 32768
 stack_top:

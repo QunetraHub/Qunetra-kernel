@@ -14,6 +14,7 @@ STORAGE_TYPE = AHCI # ATA / AHCI
 CFLAGS   = -std=gnu99 -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-builtin -mgeneral-regs-only -fcf-protection=none -O2 -Wall -Wextra -I. -Iinclude
 ASMFLAGS = -f elf32
 LDFLAGS  = -m32 -nostdlib -no-pie -T qunetra/boot/linker.ld
+NET_ARGS = -netdev user,id=net0 -device e1000,netdev=net0
 
 rwildcard = $(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
 
@@ -67,8 +68,7 @@ run: all $(IMG)
 	@printf "$(TEXT)Running '$(LIGHT_TEXT)$(ISO)$(TEXT)' on $(LIGHT_TEXT)QEMU$(TEXT) [Controller: $(LIGHT_TEXT)$(strip $(STORAGE_TYPE))$(TEXT)]...\n"
 	@qemu-system-i386 -cdrom $(BIN_DIR)/$(ISO) -boot d \
 		-device VGA,xres=1280,yres=720 -display gtk,zoom-to-fit=off \
-		$(DRIVE_ARGS) \
-		-netdev user,id=net0 -device e1000,netdev=net0 \
+		$(DRIVE_ARGS) $(NET_ARGS) \
 		-d int,cpu_reset -D qemu.log
 
 $(BIN_DIR)/$(ISO): $(KERNEL) grub.cfg

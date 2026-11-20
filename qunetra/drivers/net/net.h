@@ -34,7 +34,6 @@ const uint8* netDns();
 void netSetDns(const uint8 ip[4]);
 
 void netPoll();
-
 state netArp(const uint8 ip[4], uint8 mac[6]);
 state netPing(const uint8 ip[4], uint8* ttl);
 state netUdpBind(const uint16 port);
@@ -42,7 +41,8 @@ void netUdpUnbind();
 state netUdpSend(const uint8 dst[4], const uint16 srcPort, const uint16 dstPort, const uint8* data, const uint16 len);
 uint16 netUdpRecv(uint8 srcIp[4], uint16* srcPort, uint8* buf, const uint16 maxLen);
 state netDnsResolve(const char* name, uint8 ip[4]);
-
+state netIpSend(const uint8 dst[4], const uint8 proto, const uint8* payload, const uint16 len);
+uint16 netPseudoChecksum(const uint8 src[4], const uint8 dst[4], const uint8 proto, const uint8* data, const uint16 len);
 state netParseIp(const char* text, uint8 ip[4]);
 
 #endif

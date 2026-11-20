@@ -19,13 +19,15 @@
 
 #include "../drivers/storage/storage.h"
 #include "../drivers/net/net.h"
-#include "../utility/string.h"
 #include "../utility/memory.h"
+#include "../utility/string.h"
 #include "../utility/types.h"
-#include "../utility/math.h"
+#include "../drivers/timer.h"
 #include "../utility/bits.h"
+#include "../utility/math.h"
 #include "../utility/cpu.h"
 #include "../drivers/lfb.h"
+#include "kernel_info.h"
 #include "interrupts.h"
 #include "keyboard.h"
 #include "console.h"
@@ -87,8 +89,7 @@ static void prtVal(const char* name, const uint v, const char* type) {
 	for (int i = 0; i < s; i++) putChar(' ');
 	kprintf("%q[%q%d%s%q]\n", 4, 8, v, type, 4);
 }
-
-uint64 getSectorSize(const uint64 sectors, const char** memUnit) {
+static uint64 getSectorSize(const uint64 sectors, const char** memUnit) {
 	if (sectors >= 2199023255552ULL) { *memUnit = " PiB"; return sectors / 2199023255552ULL; }
 	else if (sectors >= 2147483648ULL) { *memUnit = " TiB"; return sectors / 2147483648ULL; }
 	else if (sectors >= 2097152ULL) { *memUnit = " GiB"; return sectors / 2097152ULL; }
@@ -105,11 +106,11 @@ void kernel_main(const uint32 magic, const uint32 addr) {
 		vga("ERROR: Bad Multiboot2 Magic Number!");
 		return;
 	}
-	const state lfb = initLFB(addr),
-				console = initConsole();
+	const state lfb = initLFB(addr), console = initConsole();
 	heap_init();
 	lfbFill(0);
 	kprintf("%q=-=-=-=-=-=-= %qQunetra %q=-=-=-=-=-=-=\n", 4, 13, 4);
+	kprintf("%q=-=-=-=  %q" KERNEL_VERSION_STR " %q=-=-=-=\n", 4, 13, 4);
 	prtState("Magic number", true);
 	prtState("LFB", lfb);
 	prtState("Console", console);
@@ -127,12 +128,10 @@ void kernel_main(const uint32 magic, const uint32 addr) {
 	prtVal("Sectors", sectors, "");
 	prtVal("Disk memory", diskMem, memUnit);
 	kprintf("%q=-= %qNetwork %q=-=\n", 4, 13, 4);
+	prtState("Timer", initTimer());
 	const state net = netInit();
 	prtState("e1000", net);
-	if (net) {
-		prtCustom("MAC", netMacString());
-		prtState("Link", netLinkUp());
-	}
+	if (net) prtState("Link", netLinkUp());
 	kprintf("%q=-= %qUtility %q=-=\n", 4, 13, 4);
 	prtStateNxN("string.h", stringTest(), 23);
 	prtStateNxN("memory.h", memoryTest(), 3);
@@ -151,6 +150,7 @@ void kernel_main(const uint32 magic, const uint32 addr) {
 	while (true) {
 		const char c = keyboardGet();
 		setCharCLI(c);
+		netPoll();
 		qunetraLoop(c);
 	}
 }

@@ -167,7 +167,6 @@ state e1000_init() {
 	REG(REG_IMC) = 0xFFFFFFFFu;
 	(void)REG(REG_ICR);
 	REG(REG_CTRL) = (REG(REG_CTRL) | CTRL_SLU | CTRL_ASDE) & ~((1u << 3) | (1u << 7));
-
 	if (!readMac()) return false;
 	REG(REG_RAL0) = (uint32)macAddr[0] | ((uint32)macAddr[1] << 8) | ((uint32)macAddr[2] << 16) | ((uint32)macAddr[3] << 24);
 	REG(REG_RAH0) = (uint32)macAddr[4] | ((uint32)macAddr[5] << 8) | (1u << 31);

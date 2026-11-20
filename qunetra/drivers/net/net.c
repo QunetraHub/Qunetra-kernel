@@ -19,10 +19,18 @@
 
 #include "../../utility/types.h"
 #include "e1000.h"
+#include "../timer.h"
+#include "tcp.h"
 #include "net.h"
 
-#ifndef NET_WAIT_POLLS
-#define NET_WAIT_POLLS 20000000
+#ifndef NET_ARP_TIMEOUT_MS
+#define NET_ARP_TIMEOUT_MS 1000
+#endif
+#ifndef NET_PING_TIMEOUT_MS
+#define NET_PING_TIMEOUT_MS 2000
+#endif
+#ifndef NET_DNS_TIMEOUT_MS
+#define NET_DNS_TIMEOUT_MS 2000
 #endif
 #define NET_ARP_TRIES 3
 #define NET_DNS_TRIES 3
@@ -36,29 +44,37 @@
 #define UDP_HEADER 8
 #define UDP_MAX_PAYLOAD (IP_MAX_PAYLOAD - UDP_HEADER)
 #define PROTO_ICMP 1
+#define PROTO_TCP 6
 #define PROTO_UDP 17
 #define ARP_CACHE_SIZE 8
+#define PING_ID 0x5155 // "QU"
 
-static uint8 myIp[4] = {10, 0, 2, 15}, myMask[4] = {255, 255, 255, 0}, myGateway[4] = {10, 0, 2, 2}, myDns[4] = {10, 0, 2, 3};
-static char macText[18] = "00:00:00:00:00:00";
+static uint8
+	myIp[4] = {10, 0, 2, 15},
+	myMask[4] = {255, 255, 255, 0},
+	myGateway[4] = {10, 0, 2, 2},
+	myDns[4] = {10, 0, 2, 3},
+	arpNext = 0,
+	pingTarget[4],
+	pingTtl = 0,
+	rxFrame[E1000_MAX_FRAME],
+	txFrame[E1000_MAX_FRAME],
+	udpSrcIp[4],
+	udpBuf[UDP_MAX_PAYLOAD];
 static const uint8 broadcastMac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, zeroMac[6] = {0, 0, 0, 0, 0, 0};
-static uint8 rxFrame[E1000_MAX_FRAME], txFrame[E1000_MAX_FRAME];
-
+static state pingWaiting = false, pingGot = false, udpHave = false;
+static uint16
+	ipId = 1,
+	pingSeq = 0,
+	udpPort = 0,
+	udpLen = 0,
+	udpSrcPort = 0;
+static char macText[18] = "00:00:00:00:00:00";
 typedef struct {
 	uint8 ip[4], mac[6];
 	state valid;
 } arpEntry;
 static arpEntry arpCache[ARP_CACHE_SIZE];
-static uint8 arpNext = 0;
-static uint16 ipId = 1;
-
-static state pingWaiting = false, pingGot = false;
-static uint8 pingTarget[4], pingTtl = 0;
-static uint16 pingSeq = 0;
-#define PING_ID 0x5155
-static uint16 udpPort = 0, udpLen = 0, udpSrcPort = 0;
-static state udpHave = false;
-static uint8 udpSrcIp[4], udpBuf[UDP_MAX_PAYLOAD];
 
 static void put16(uint8* p, const uint16 v) {
 	p[0] = (uint8)(v >> 8);
@@ -86,16 +102,17 @@ static uint16 csumFinish(uint32 acc) {
 	while (acc >> 16) acc = (acc & 0xFFFF) + (acc >> 16);
 	return (uint16)~acc;
 }
-static uint16 udpChecksum(const uint8* src, const uint8* dst, const uint8* udp, const uint16 len) {
+uint16 netPseudoChecksum(const uint8 src[4], const uint8 dst[4], const uint8 proto, const uint8* data, const uint16 len) {
 	uint8 pseudo[12];
 	copyIp(pseudo, src);
 	copyIp(pseudo + 4, dst);
 	pseudo[8] = 0;
-	pseudo[9] = PROTO_UDP;
+	pseudo[9] = proto;
 	put16(pseudo + 10, len);
-	return csumFinish(csumAdd(udp, len, csumAdd(pseudo, 12, 0)));
+	return csumFinish(csumAdd(data, len, csumAdd(pseudo, 12, 0)));
 }
 state netInit() {
+	initTimer();
 	if (!e1000_init()) return false;
 	const char* hex = "0123456789abcdef";
 	const uint8* m = e1000_mac();
@@ -120,10 +137,9 @@ const uint8* netDns() { return myDns; }
 void netSetDns(const uint8 ip[4]) { copyIp(myDns, ip); }
 state netParseIp(const char* text, uint8 out[4]) {
 	if (!text) return false;
-	uint8 part = 0;
+	uint8 part = 0, tmp[4];
 	uint value = 0;
 	state digits = false;
-	uint8 tmp[4];
 	for (const char* p = text;; p++) {
 		if (*p >= '0' && *p <= '9') {
 			value = value * 10 + (uint)(*p - '0');
@@ -201,7 +217,8 @@ state netArp(const uint8 target[4], uint8 mac[6]) {
 	if (arpLookup(target, mac)) return true;
 	for (uint8 attempt = 0; attempt < NET_ARP_TRIES; attempt++) {
 		if (!arpSend(1, broadcastMac, zeroMac, target)) return false;
-		for (uint32 t = 0; t < NET_WAIT_POLLS; t++) {
+		const uint64 deadline = timerDeadline(NET_ARP_TIMEOUT_MS);
+		while (!timerExpired(deadline)) {
 			netPoll();
 			if (arpLookup(target, mac)) return true;
 		}
@@ -231,6 +248,7 @@ static state ipSend(const uint8* dstIp, const uint8 proto, const uint8* payload,
 	else if (!netArp(sameSubnet(dstIp, myIp) ? dstIp : myGateway, mac)) return false;
 	return ipSendRaw(mac, dstIp, proto, payload, len);
 }
+state netIpSend(const uint8 dst[4], const uint8 proto, const uint8* payload, const uint16 len) { return ipSend(dst, proto, payload, len); }
 static void handleIcmp(const uint8* srcMac, const uint8* srcIp, const uint8 ttl, const uint8* m, const uint16 len) {
 	if (len < 8 || csumFinish(csumAdd(m, len, 0)) != 0) return;
 	if (m[0] == 8 && m[1] == 0) {
@@ -259,7 +277,8 @@ state netPing(const uint8 target[4], uint8* ttl) {
 	pingGot = false;
 	pingWaiting = true;
 	state ok = ipSend(target, PROTO_ICMP, msg, sizeof(msg));
-	for (uint32 t = 0; ok && !pingGot && t < NET_WAIT_POLLS; t++) netPoll();
+	const uint64 deadline = timerDeadline(NET_PING_TIMEOUT_MS);
+	while (ok && !pingGot && !timerExpired(deadline)) netPoll();
 	pingWaiting = false;
 	if (pingGot && ttl) *ttl = pingTtl;
 	return pingGot;
@@ -268,7 +287,7 @@ static void handleUdp(const uint8* srcIp, const uint8* dstIp, const uint8* u, co
 	if (len < UDP_HEADER) return;
 	const uint16 ulen = get16(u + 4);
 	if (ulen < UDP_HEADER || ulen > len) return;
-	if (get16(u + 6) != 0 && udpChecksum(srcIp, dstIp, u, ulen) != 0) return;
+	if (get16(u + 6) != 0 && netPseudoChecksum(srcIp, dstIp, PROTO_UDP, u, ulen) != 0) return; // 0 = the sender did not compute it
 	if (udpPort == 0 || get16(u + 2) != udpPort || udpHave) return;
 	udpLen = ulen - UDP_HEADER;
 	for (uint16 i = 0; i < udpLen; i++) udpBuf[i] = u[UDP_HEADER + i];
@@ -294,7 +313,7 @@ state netUdpSend(const uint8 dst[4], const uint16 srcPort, const uint16 dstPort,
 	put16(seg + 4, UDP_HEADER + len);
 	put16(seg + 6, 0);
 	for (uint16 i = 0; i < len; i++) seg[UDP_HEADER + i] = data[i];
-	uint16 c = udpChecksum(myIp, dst, seg, UDP_HEADER + len);
+	const uint16 c = netPseudoChecksum(myIp, dst, PROTO_UDP, seg, UDP_HEADER + len);
 	put16(seg + 6, c == 0 ? 0xFFFF : c);
 	return ipSend(dst, PROTO_UDP, seg, UDP_HEADER + len);
 }
@@ -321,6 +340,7 @@ static void handleIp(const uint8* frame, const uint16 len) {
 	const uint16 plen = total - ihl;
 	if (p[9] == PROTO_ICMP) handleIcmp(frame + 6, src, p[8], payload, plen);
 	else if (p[9] == PROTO_UDP) handleUdp(src, dst, payload, plen);
+	else if (p[9] == PROTO_TCP) tcpInput(src, dst, payload, plen);
 }
 void netPoll() {
 	const uint16 len = e1000_recv(rxFrame, sizeof(rxFrame));
@@ -407,7 +427,8 @@ state netDnsResolve(const char* name, uint8 out[4]) {
 			netUdpUnbind();
 			return false;
 		}
-		for (uint32 t = 0; t < NET_WAIT_POLLS; t++) {
+		const uint64 deadline = timerDeadline(NET_DNS_TIMEOUT_MS);
+		while (!timerExpired(deadline)) {
 			uint8 from[4];
 			const uint16 n = netUdpRecv(from, 0, reply, sizeof(reply));
 			if (n == 0 || !sameIp(from, myDns)) continue;
