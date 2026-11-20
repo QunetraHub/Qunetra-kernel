@@ -288,7 +288,7 @@ void kprintf(const char *format, ...) {
 			default: {
 				putChar('%');
 				putChar(*p);
-				return;
+				break;
 			}
 		}
 	}
