@@ -110,7 +110,7 @@ void kernel_main(const uint32 magic, const uint32 addr) {
 	heap_init();
 	lfbFill(0);
 	kprintf("%q=-=-=-=-=-=-= %qQunetra %q=-=-=-=-=-=-=\n", 4, 13, 4);
-	kprintf("%q=-=-=-=  %q" KERNEL_VERSION_STR " %q=-=-=-=\n", 4, 13, 4);
+	kprintf("%q=-=-=-=  %q" KERNEL_VERSION_STR "  %q=-=-=-=\n", 4, 13, 4);
 	prtState("Magic number", true);
 	prtState("LFB", lfb);
 	prtState("Console", console);
@@ -135,7 +135,7 @@ void kernel_main(const uint32 magic, const uint32 addr) {
 	kprintf("%q=-= %qUtility %q=-=\n", 4, 13, 4);
 	prtStateNxN("string.h", stringTest(), 23);
 	prtStateNxN("memory.h", memoryTest(), 3);
-	prtStateNxN("math.h", mathTest() * 2, 10);
+	prtStateNxN("math.h", mathTest(), 11);
 	prtStateNxN("bits.h", bitsTest(), 3);
 	putChar('\n');
 	for (uint8 y = 0; y < 16; y++) {

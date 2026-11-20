@@ -37,13 +37,23 @@ static inline int64 kclamp64(const int64 v, const int64 _min, const int64 _max) 
 static inline int8 ksign(const int v) { return v < 0 ? -1 : v > 0 ? 1 : 0; }
 static inline int8 ksign64(const int64 v) { return v < 0 ? -1 : v > 0 ? 1 : 0; }
 
+static inline int32 kpow(const int16 v, const uint16 exp) {
+	if (v == 0) return 0;
+	if (exp == 0) return 1;
+	if (exp == 1) return v;
+	int32 res = 1;
+	for (uint16 i = 0; i < exp; i++) res *= v;
+	return res;
+}
+
 static inline uint mathTest() {
 	uint x = 0;
-	x += kabs(-51) == 51;
-	x += kmin(-21, 37) == -21;
-	x += kmax(21, -37) == 21;
-	x += kclamp(239, 41, 203) == 203 && kclamp(124, 231, 429) == 231;
-	x += ksign(-12) == -1 && ksign(16) == 1 && ksign(0) == 0;
+	x += (kabs(-51) == 51) * 2;
+	x += (kmin(-21, 37) == -21) * 2;
+	x += (kmax(21, -37) == 21) * 2;
+	x += (kclamp(239, 41, 203) == 203 && kclamp(124, 231, 429) == 231) * 2;
+	x += (ksign(-12) == -1 && ksign(16) == 1 && ksign(0) == 0) * 2;
+	x += kpow(4, 3) == 64 && kpow(0, 4) == 0 && kpow(2, 1) == 2 && kpow(2, 0) == 1;
 	return x;
 }
 

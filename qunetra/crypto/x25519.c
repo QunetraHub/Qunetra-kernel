@@ -87,7 +87,6 @@ static void finv(gf o, const gf in) {
 	}
 	for (uint8 i = 0; i < 16; i++) o[i] = c[i];
 }
-
 state x25519(uint8 out[32], const uint8 scalar[32], const uint8 point[32]) {
 	uint8 z[32];
 	gf x, a, b, c, d, e, f;

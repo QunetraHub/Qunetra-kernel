@@ -203,6 +203,10 @@ static void putUNumber(uint32 value, const uint8 base) {
 	}
 	while (i > 0) putChar(tmp[--i]);
 }
+static uint8 charToNum(const char c) {
+	if ('0' <= c && c <= '9') return c - '0';
+	return 0;
+}
 extern void strConvertV(char* buf, const uint size, const char* format, va_list args);
 void kprintf(const char *format, ...) {
 	if (consoleDisable || !format) return;
@@ -215,24 +219,12 @@ void kprintf(const char *format, ...) {
 			continue;
 		}
 		p++;
-		if (*p == '\0') break;
+		if (*p == '\0') return;
 		switch (*p) {
-			case 's': {
-				putStr(va_arg(args, const char*));
-				break;
-			}
-			case 'c': {
-				putChar(va_arg(args, int));
-				break;
-			}
-			case 'd': case 'i': {
-				putNumber(va_arg(args, int32), 10);
-				break;
-			}
-			case 'u': {
-				putUNumber(va_arg(args, uint32), 10);
-				break;
-			}
+			case 's': { putStr(va_arg(args, const char*)); break; }
+			case 'c': { putChar(va_arg(args, int)); break; }
+			case 'd': case 'i': { putNumber(va_arg(args, int32), 10); break; }
+			case 'u': { putUNumber(va_arg(args, uint32), 10); break; }
 			case 'x': {
 				du = false;
 				putNumber(va_arg(args, int32), 16);
@@ -243,10 +235,7 @@ void kprintf(const char *format, ...) {
 				putNumber(va_arg(args, int32), 16);
 				break;
 			}
-			case 'q': {
-				setCharColor(kclamp(va_arg(args, int), 0, 255));
-				break;
-			}
+			case 'q': { setCharColor(kclamp(va_arg(args, int), 0, 255)); break; }
 			case 'p': {
 				const uint64 v = va_arg(args, uint64);
 				const uint32 oc = charColor;
@@ -255,10 +244,9 @@ void kprintf(const char *format, ...) {
 				putChar('x');
 				state leading = true;
 				for (int8 i = 15; i >= 0; i--) {
-					uint8 nibble = (v >> (i * 4)) & 0xF;
-					if (nibble == 0 && leading && i > 0) {
-						putChar('0');
-					} else {
+					const uint8 nibble = (v >> (i * 4)) & 0xF;
+					if (nibble == 0 && leading && i > 0) putChar('0');
+					else {
 						if (leading && nibble != 0) leading = false;
 						if (nibble != 0) setCharColor(9);
 						putChar(digits[nibble]);
@@ -267,11 +255,40 @@ void kprintf(const char *format, ...) {
 				charColor = oc;
 				break;
 			}
+			case '0': {
+				p++;
+				if (*p == '\0') return;
+				uint16 cnt = 0;
+				while ('0' <= *p && *p <= '9') {
+					cnt = cnt * 10 + charToNum(*p);
+					p++;
+					if (*p == '\0') return;
+				}
+				if (cnt == 0) break;
+				const int32 v = va_arg(args, int32);
+				const uint8 m = *p == 'x' || *p == 'X' ? 16 : 10;
+				for (uint16 i = 1; i < cnt; i++) if (v < kpow(m, cnt - i)) putChar('0');
+				switch (*p) {
+					case 'd': case 'i': { putNumber(v, 10); break; }
+					case 'u': { putUNumber(v, 10); break; }
+					case 'x': {
+						du = false;
+						putNumber(v, 16);
+						break;
+					}
+					case 'X': {
+						du = true;
+						putNumber(v, 16);
+						break;
+					}
+				}
+				break;
+			}
 			case '%': { putChar('%'); break; }
 			default: {
 				putChar('%');
 				putChar(*p);
-				break;
+				return;
 			}
 		}
 	}
