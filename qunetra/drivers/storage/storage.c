@@ -62,26 +62,6 @@ static void scanPci() {
 		}
 	}
 }
-// ===================================================================================
-// Layout
-//
-// Disk sectors (512 B):
-//   0 - meta:        byte 0 = QUNETRA_OS_META, bytes 1-8 = file count
-//   1 - root catalog (head of a sector chain holding directory entries)
-//   2 - free sectors: next = head of the free list,
-//                     data[0-7] = first never used sector (high-water mark)
-//   3+ - data sectors
-//
-// Every chain sector:
-//   0  - 7   next: next sector in the chain (0 = end)
-//   8  - 15  last: last sector of the chain (valid in the FIRST sector of a chain)
-//   16 - 17  size: number of used data bytes in this sector
-//   18 - 511 data: 494 bytes
-//
-// A file = a chain of sectors, its id = number of the first sector.
-// Directory entry (40 B): 0-7 first sector of the file (0 = free slot), 8-39 name (NUL terminated)
-// Numbers are stored big endian.
-// ===================================================================================
 #define QUNETRA_OS_META (uint8)(0b11100111)
 
 #define SEC_NEXT 0

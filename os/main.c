@@ -3,7 +3,7 @@
 //	#define QUNETRA_TIMER
 //	#define QUNETRA_BITS
 //	#define QUNETRA_MATH
-//	#define QUNETRA_CLI
+	#define QUNETRA_CLI
 //	#define QUNETRA_CPU
 //	#define QUNETRA_LFB
 //	#define QUNETRA_NET
@@ -12,6 +12,7 @@
 
 // Calls functions before the loop
 void qunetraStart() {
+	addQunetraBaseCommands();
 	kprintf("Hello, World!\n");
 }
 // The system's main loop passes the currently pressed keyboard key

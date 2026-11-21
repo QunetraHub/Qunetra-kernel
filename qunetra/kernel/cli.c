@@ -18,9 +18,11 @@
  */
 
 #include "../drivers/storage/storage.h"
+#include "../drivers/net/http.h"
 #include "../utility/string.h"
 #include "../utility/types.h"
 #include "../drivers/lfb.h"
+#include "../drivers/rtc.h"
 #include "kernel_info.h"
 #include "keyboard.h"
 #include "console.h"
@@ -298,13 +300,56 @@ void setCharCLI(const char c) {
 	input[inputLength] = '\0';
 	histPos = 0;
 }
-#define __getFile_TF__(i)  const uint64 fs = findFile(curDir, argv[i]); if (!fs) { kprintf("%qFile '%s' was not found\n", 20, argv[i]); return; }
-#define __getFile_TF_for__ const uint64 fs = findFile(curDir, argv[i]); if (!fs) { kprintf("%qFile '%s' was not found\n", 20, argv[i]); continue; }
-#define __getFile_TC__(i)  const uint64 fs = findFile(curDir, argv[i]); if (fs) { kprintf("%qFile '%s' already exists!\n", 20, argv[i]); return; }
-#define __getFile_TC_for__ const uint64 fs = findFile(curDir, argv[i]); if (fs) { kprintf("%qFile '%s' already exists!\n", 20, argv[i]); continue; }
+#define __getFile_TF__(i)  const uint64 fs = findFile(curDir, argv[i]); if (!fs) { kprintf("%qFile '%s' was not found\n",   20, argv[i]); return; }
+#define __getFile_TF_for__ const uint64 fs = findFile(curDir, argv[i]); if (!fs) { kprintf("%qFile '%s' was not found\n",   20, argv[i]); continue; }
+#define __getFile_TC__(i)  const uint64 fs = findFile(curDir, argv[i]); if (fs)  { kprintf("%qFile '%s' already exists!\n", 20, argv[i]); return; }
+#define __getFile_TC_for__ const uint64 fs = findFile(curDir, argv[i]); if (fs)  { kprintf("%qFile '%s' already exists!\n", 20, argv[i]); continue; }
 
-__nqc__(ls) { __qcdb__ listFiles(curDir); }
-__nqc__(cat) { __qccu__(1, "<filename>")
+static void printSink(const uint8* d, const uint16 n) {
+	for (uint16 i = 0; i < n; i++) {
+		const uint8 c = d[i];
+		if (c == '\n' || c == '\t' || (c >= 32 && c < 127)) putChar((char)c);
+		else if (c != '\r') putChar('.');
+	}
+}
+__nqc__(github) { __qccu__(3, 4, "<user> <repo name> <path> [branch (default: main)]")
+	char url[512];
+	const char* file = argv[3][0] == '/' ? argv[3] + 1 : argv[3];
+	strConvert(url, sizeof(url), "https://raw.githubusercontent.com/%s/%s/%s/%s", argv[1], argv[2], argc == 5 ? argv[4] : "main", file);
+	httpGetUrl(url, printSink);
+}
+__nqc__(clear) { __qcdb__ lfbFill(0); }
+__nqc__(trunc) { __qccu__(1, 1, "<filename>")
+	for (int i = 1; i < argc; i++) {
+		__getFile_TF_for__
+		deleteFile(curDir, argv[i]);
+		createFile(curDir, argv[i]);
+	}
+}
+__nqc__(touch) { __qccu__(1, 1, "<filename>")
+	for (int i = 1; i < argc; i++) {
+		__getFile_TC_for__
+		createFile(curDir, argv[i]);
+	}
+}
+__nqc__(write) { __qccu__(2, 2, "<filename> <data>")
+	__getFile_TF__(1)
+	for (int i = 2; i < argc; i++) {
+		kfwrite(fs, argv[i]);
+		if (i < argc - 1) fwriteb(fs, ' ');
+	}
+}
+__nqc__(date) { __qcdb__
+	uint16 y;
+	uint8 mo, d, h, mi, s;
+	if (!rtcGet(&y, &mo, &d, &h, &mi, &s)) { kprintf("the clock can not be read\n"); return; }
+	kprintf("%u.%02u.%02u %02u:%02u:%02u\n", d, mo, y, h, mi, s);
+}
+__nqc__(stat) { __qccu__(1, 1, "<filename>")
+	__getFile_TF__(1)
+	kprintf("ID: %p | Size: %uB\n", fs, fileSize(fs));
+}
+__nqc__(cat) { __qccu__(1, 1, "<filename>")
 	__getFile_TF__(1)
 	if (fileSize(fs)) {
 		uint64 i = 0;
@@ -313,47 +358,25 @@ __nqc__(cat) { __qccu__(1, "<filename>")
 	} else kprintf("%qThe file is empty", 6);
 	putChar('\n');
 }
-__nqc__(touch) { __qccu__(1, "<filename>")
-	for (int i = 1; i < argc; i++) {
-		__getFile_TC_for__
-		createFile(curDir, argv[i]);
-	}
-}
-__nqc__(rm) { __qccu__(1, "<filename>")
+__nqc__(cd) { __qccu__(1, 1, "<dir ID>") curDir = realCatalog(strToUInt(argv[1]) + 1); }
+__nqc__(ls) { __qcdb__ listFiles(curDir); }
+__nqc__(rm) { __qccu__(1, 1, "<filename>")
 	for (int i = 1; i < argc; i++) {
 		__getFile_TF_for__
 		deleteFile(curDir, argv[i]);
-	}
-}
-__nqc__(stat) { __qccu__(1, "<filename>")
-	__getFile_TF__(1)
-	kprintf("ID: %p | Size: %uB\n", fs, fileSize(fs));
-}
-__nqc__(clear) { __qcdb__ lfbFill(0); }
-__nqc__(cd) { __qccu__(1, "<dir ID>") curDir = realCatalog(strToUInt(argv[1]) + 1); }
-__nqc__(write) { __qccu__(2, "<filename> <data>")
-	__getFile_TF__(1)
-	for (int i = 2; i < argc; i++) {
-		kfwrite(fs, argv[i]);
-		if (i < argc - 1) fwriteb(fs, ' ');
-	}
-}
-__nqc__(trunc) { __qccu__(1, "<filename>")
-	for (int i = 1; i < argc; i++) {
-		__getFile_TF_for__
-		deleteFile(curDir, argv[i]);
-		createFile(curDir, argv[i]);
 	}
 }
 
 void addQunetraBaseCommands() {
-	__aqc__(ls, "List files in the current directory");
-	__aqc__(cat, "Display the content of a file");
-	__aqc__(touch, "Create a new empty file");
-	__aqc__(rm, "Delete a specified file");
-	__aqc__(stat, "Show file metadata (size & ID)");
+	__aqc__(github, "Display file contents from a GitHub repository");
 	__aqc__(clear, "Clear the console screen");
-	__aqc__(cd, "Change the current working directory");
-	__aqc__(write, "Append text to a specified file");
 	__aqc__(trunc, "Clear file contents (truncate to 0 bytes)");
+	__aqc__(touch, "Create a new empty file");
+	__aqc__(write, "Append text to a specified file");
+	__aqc__(date, "Show the real time clock");
+	__aqc__(stat, "Show file metadata (size & ID)");
+	__aqc__(cat, "Display the content of a file");
+	__aqc__(cd, "Change the current working directory");
+	__aqc__(ls, "List files in the current directory");
+	__aqc__(rm, "Delete a specified file");
 }

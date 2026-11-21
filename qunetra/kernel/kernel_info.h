@@ -5,7 +5,7 @@
 
 #define VER_MAJOR      0
 #define VER_MINOR      14
-#define VER_PATCH      4
+#define VER_PATCH      5
 #define VER_REVISION   4
 
 #define VER_YEAR       26

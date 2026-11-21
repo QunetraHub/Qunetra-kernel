@@ -23,11 +23,11 @@
 #include "../utility/types.h"
 
 // new qunetra command
-#define __nqc__(cmd) static void cmd(const int argc, char** argv)
+#define __nqc__(cmd) static void _qc_##cmd(const int argc, char** argv)
 // add qunetra command
-#define __aqc__(cmd, desc) addCmd(#cmd, desc, cmd)
+#define __aqc__(cmd, desc) addCmd(#cmd, desc, _qc_##cmd)
 // qunetra command correct use
-#define __qccu__(min, arg) if (argc <= min) { kprintf("%qPlease use '%s " arg "'\n", 20, argv[0]); return; }
+#define __qccu__(min, max, arg) { if (argc < (min) + 1 || argc > (max) + 1) { kprintf("%qPlease use '%s " arg "'\n", 20, argv[0]); return; } }
 // qunetra command disable count
 #define __qcdc__ (void)argc;
 // qunetra command disable values
