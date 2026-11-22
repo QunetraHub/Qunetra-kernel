@@ -42,8 +42,8 @@ void strTrim(char* str);
 void strAddChar(char* buffer, const uint size, uint *index, const char c);
 void strAddStr(char* buffer, const uint size, uint *index, const char* str);
 void strAddNum(char* buffor, const uint size,  uint* index, int value, const uint8 base);
-uint strToInt(const char* str);
-int strToUInt(const char* str);
+int strToInt(const char* str);
+uint strToUInt(const char* str);
 void strConvert(char* buf, const uint size, const char* format, ...);
 
 uint stringTest();

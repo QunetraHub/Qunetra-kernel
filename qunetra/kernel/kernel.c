@@ -127,8 +127,9 @@ void kernel_main(const uint32 magic, const uint32 addr) {
 	const uint64 sectors = storageSectors(), diskMem = getSectorSize(sectors, &memUnit);
 	prtVal("Sectors", sectors, "");
 	prtVal("Disk memory", diskMem, memUnit);
-	kprintf("%q=-= %qNetwork %q=-=\n", 4, 13, 4);
+	kprintf("%q=-= %qTime %q=-=\n", 4, 13, 4);
 	prtState("Timer", initTimer());
+	kprintf("%q=-= %qNetwork %q=-=\n", 4, 13, 4);
 	const state net = netInit();
 	prtState("e1000", net);
 	if (net) prtState("Link", netLinkUp());

@@ -344,3 +344,8 @@ void listFiles(const uint64 catalog) {
 		}
 	}
 }
+void setUTC(const int8 utc) {
+	setByte(utc, SECTOR_META, 9);
+	flushStorage();
+}
+int8 getUTC() { return getByte(SECTOR_META, 9); }

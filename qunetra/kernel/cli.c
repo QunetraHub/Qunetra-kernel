@@ -339,11 +339,23 @@ __nqc__(write) { __qccu__(2, 2, "<filename> <data>")
 		if (i < argc - 1) fwriteb(fs, ' ');
 	}
 }
+__nqc__(conf) { __qccu__(2, 2, "<name> <value>")
+	if (strIs(argv[1], "utc")) {
+		const int utc = strToInt(argv[2]);
+		if (utc > 14 && utc < -12) {
+			kprintf("%qPlease use '%s %s -12/+14'\n", 20, argv[0], argv[1]);
+			return;
+		}
+		setUTC(utc);
+	} else kprintf("%qUnkown configuration name!\n", 20);
+}
 __nqc__(date) { __qcdb__
 	uint16 y;
 	uint8 mo, d, h, mi, s;
 	if (!rtcGet(&y, &mo, &d, &h, &mi, &s)) { kprintf("the clock can not be read\n"); return; }
-	kprintf("%u.%02u.%02u %02u:%02u:%02u\n", d, mo, y, h, mi, s);
+	const int8 rutc = getUTC();
+	const uint8 utc = rutc < 0 ? -rutc : rutc;
+	kprintf("%u.%02u.%02u %02u:%02u:%02u (UTC%c%u)\n", d, mo, y, h, mi, s, rutc < 0 ? '-' : '+', utc);
 }
 __nqc__(stat) { __qccu__(1, 1, "<filename>")
 	__getFile_TF__(1)
@@ -373,6 +385,7 @@ void addQunetraBaseCommands() {
 	__aqc__(trunc, "Clear file contents (truncate to 0 bytes)");
 	__aqc__(touch, "Create a new empty file");
 	__aqc__(write, "Append text to a specified file");
+	__aqc__(conf, "Configure system settings (e.g. UTC, language)");
 	__aqc__(date, "Show the real time clock");
 	__aqc__(stat, "Show file metadata (size & ID)");
 	__aqc__(cat, "Display the content of a file");

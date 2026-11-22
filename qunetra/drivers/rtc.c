@@ -18,6 +18,7 @@
  */
 
 #include "../utility/types.h"
+#include "storage/storage.h"
 #include "../utility/cpu.h"
 #include "rtc.h"
 
@@ -26,7 +27,15 @@ static uint8 cmosRead(const uint8 reg) {
 	return inb(0x71);
 }
 static uint8 bcd(const uint8 v) { return (uint8)((v & 0x0F) + (v >> 4) * 10); }
-
+static state rtcIsLeapYear(const uint16 year) { return ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)) ? true : false; }
+static uint8 rtcDaysInMonth(const uint16 year, const uint8 month) {
+	switch (month) {
+		case 1: case 3: case 5: case 7: case 8: case 10: case 12: return 31;
+		case 4: case 6: case 9: case 11: return 30;
+		case 2: return rtcIsLeapYear(year) ? 29 : 28;
+		default: return 30;
+	}
+}
 state rtcGet(uint16* outYear, uint8* outMonth, uint8* outDay, uint8* outHour, uint8* outMin, uint8* outSec) {
 	uint8 sec, min, hour, day, month, year, century, last[7];
 	for (uint8 tries = 0; tries < 10; tries++) {
@@ -58,13 +67,42 @@ state rtcGet(uint16* outYear, uint8* outMonth, uint8* outDay, uint8* outHour, ui
 		century = bcd(century);
 	} else hour &= 0x7F;
 	if (!(statusB & 0x02) && pm) hour = (uint8)((hour % 12) + 12);
-	uint32 fullYear = 2000u + year;
-	if (century >= 19 && century <= 30) fullYear = (uint32)century * 100 + year;
+	uint16 fullYear = 2000 + year;
+	if (century >= 19 && century <= 30) fullYear = century * 100 + year;
 	if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || min > 59 || sec > 60) return false;
-	*outYear = (uint16)fullYear;
-	*outMonth = month;
-	*outDay = day;
-	*outHour = hour;
+	if (day > rtcDaysInMonth(fullYear, month)) return false;
+	int8 h = hour + getUTC();
+	uint16 y = fullYear;
+	uint8 m = month, d = day;
+	while (h >= 24) {
+		h -= 24;
+		d++;
+		uint8 dim = rtcDaysInMonth(y, m);
+		if (d > dim) {
+			d = 1;
+			m++;
+			if (m > 12) {
+				m = 1;
+				y++;
+			}
+		}
+	}
+	while (h < 0) {
+		h += 24;
+		if (d > 1) d--;
+		else {
+			m--;
+			if (m < 1) {
+				m = 12;
+				y--;
+			}
+			d = rtcDaysInMonth(y, m);
+		}
+	}
+	*outYear = (uint16)y;
+	*outMonth = m;
+	*outDay = d;
+	*outHour = (uint8)h;
 	*outMin = min;
 	*outSec = sec;
 	return true;

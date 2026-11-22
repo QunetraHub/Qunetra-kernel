@@ -34,5 +34,7 @@ state kfwrite(const uint64 file, const char* value);
 state freadb(const uint64 file, const uint64 pos, uint8* out);
 uint64 fileSize(const uint64 file);
 void listFiles(const uint64 catalog);
+void setUTC(const int8 utc);
+int8 getUTC();
 
 #endif

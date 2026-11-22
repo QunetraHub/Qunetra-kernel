@@ -59,7 +59,7 @@ state initTimer() {
 	uint32 pitTicks = 0;
 	uint16 last = pitRead();
 	const uint64 start = rdtsc();
-	while (pitTicks < 1193u * 64) { // 64 ms
+	while (pitTicks < 1193u * 64) {
 		const uint16 now = pitRead();
 		pitTicks += (uint16)(last - now);
 		last = now;
