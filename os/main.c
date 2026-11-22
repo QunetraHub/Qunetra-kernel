@@ -7,7 +7,7 @@
 //	#define QUNETRA_CPU
 //	#define QUNETRA_LFB
 //	#define QUNETRA_NET
-	#define QUNETRA_FS
+//	#define QUNETRA_FS
 #include "qunetra.h" // IWYU pragma: keep
 
 // Calls functions before the loop
