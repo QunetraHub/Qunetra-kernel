@@ -31,6 +31,7 @@
 #include "interrupts.h"
 #include "keyboard.h"
 #include "console.h"
+#include "mouse.h"
 #include "cli.h"
 
 #define DISTANCE 35
@@ -121,6 +122,12 @@ void kernel_main(const uint32 magic, const uint32 addr) {
 	prtState("IDT + PIC", initInterrupts());
 	prtState("Keyboard", initKeyboard());
 	sti();
+	const state mouse = initMouse();
+	prtState("Mouse", mouse);
+	if (mouse) {
+		mouseSetBounds(getWidth(), getHeight());
+		prtState("Scroll wheel", mouseHasWheel());
+	}
 	kprintf("%q=-= %qStorage %q=-=\n", 4, 13, 4);
 	prtCustom("Controller", initStorage());
 	const char* memUnit;

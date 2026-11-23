@@ -70,6 +70,15 @@ irq1_stub:
 	popad
 	iretd
 
+global irq12_stub
+extern mouseIrqHandler
+irq12_stub:
+	pushad
+	cld
+	call mouseIrqHandler
+	popad
+	iretd
+
 .halt:
 	cli
 	hlt

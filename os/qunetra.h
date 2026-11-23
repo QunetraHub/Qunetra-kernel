@@ -30,6 +30,9 @@
 #ifdef QUNETRA_STRING
 #include "../qunetra/utility/string.h"
 #endif
+#ifdef QUNETRA_MOUSE
+#include "../qunetra/kernel/mouse.h"
+#endif
 #ifdef QUNETRA_TIMER
 #include "../qunetra/drivers/timer.h"
 #include "../qunetra/drivers/rtc.h"
