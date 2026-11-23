@@ -38,9 +38,10 @@ state initMouse();
 state mouseHasWheel();
 int mouseGet(mouseEvent* e);
 uint8 mouseButtons();
-void mouseSetBounds(uint32 width, uint32 height);
+void mouseSetBounds(const uint32 width, const uint32 height);
 void mouseGetPosition(int32* x, int32* y);
-void mouseSetPosition(int32 x, int32 y);
+void mouseSetPosition(const int32 x, const int32 y);
 int32 mouseTakeWheel();
+void setDrawCursor(const state draw);
 
 #endif

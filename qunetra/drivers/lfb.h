@@ -26,8 +26,9 @@ state initLFB(const uint32 addr);
 uint32 getWidth();
 uint32 getHeight();
 void scrollUp();
-void scrollUpN(uint32 n);
+void scrollUpN(const uint32 n);
 void putPx(const uint32 x, const uint32 y, const uint32 color);
+uint32 getPx(const uint32 x, const uint32 y);
 void drawRect(const uint32 x, const uint32 y, const uint32 width, const uint32 height, const uint32 color);
 void lfbFill(const uint32 color);
 

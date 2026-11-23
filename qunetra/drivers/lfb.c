@@ -56,8 +56,12 @@ state initLFB(const uint32 address) {
 }
 uint32 getWidth() { return _width; }
 uint32 getHeight() { return _height; }
-void scrollUpN(uint32 n) {
+
+extern void eraseCursor();
+
+void scrollUpN(const uint32 n) {
 	if (!_addr || _height == 0 || _pitch == 0 || n == 0) return;
+	eraseCursor();
 	if (n >= _height) {
 		for (uint32 y = 0; y < _height; y++) {
 			uint32 *row = (uint32 *)((uint8 *)_addr + y * _pitch);
@@ -80,6 +84,10 @@ void scrollUp() { scrollUpN(1); }
 void putPx(const uint32 x, const uint32 y, const uint32 color) {
 	if (x >= _width || y >= _height) return;
 	*(uint32 *)((uint8 *)_addr + y * _pitch + (x << 2)) = color;
+}
+uint32 getPx(const uint32 x, const uint32 y) {
+	if (!_addr || x >= _width || y >= _height) return 0;
+	return *(const uint32 *)((const uint8 *)_addr + y * _pitch + (x << 2));
 }
 void drawRect(const uint32 x, const uint32 y, const uint32 width, const uint32 height, const uint32 color) {
 	if (x + width > _width || y + height > _height) return;

@@ -235,6 +235,8 @@ void kprintf(const char *format, ...) {
 				putNumber(va_arg(args, int32), 16);
 				break;
 			}
+			case 'b': { putNumber(va_arg(args, int32), 2); break; }
+			case 'o': { putNumber(va_arg(args, int32), 8); break; }
 			case 'q': { setCharColor(kclamp(va_arg(args, int), 0, 255)); break; }
 			case 'p': {
 				const uint64 v = va_arg(args, uint64);
@@ -266,7 +268,11 @@ void kprintf(const char *format, ...) {
 				}
 				if (cnt == 0) break;
 				const int32 v = va_arg(args, int32);
-				const uint8 m = *p == 'x' || *p == 'X' ? 16 : 10;
+				const uint8 m =
+					*p == 'x' || *p == 'X' ? 16 :
+					*p == 'b' ? 2 :
+					*p == 'o' ? 8 :
+					10;
 				for (uint16 i = 1; i < cnt; i++) if (v < kpow(m, cnt - i)) putChar('0');
 				switch (*p) {
 					case 'd': case 'i': { putNumber(v, 10); break; }
@@ -281,6 +287,8 @@ void kprintf(const char *format, ...) {
 						putNumber(v, 16);
 						break;
 					}
+					case 'b': { putNumber(v, 2); break; }
+					case 'o': { putNumber(v, 8); break; }
 				}
 				break;
 			}

@@ -17,32 +17,27 @@
  * along with Qunetra. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "../drivers/timer.h"
 #include "../utility/types.h"
 #include "../utility/cpu.h"
-#include "../drivers/timer.h"
+#include "../drivers/lfb.h"
 #include "interrupts.h"
 #include "mouse.h"
 
 #define PS2_DATA 0x60
-#define PS2_CMD 0x64
-#define ST_OUT 0x01
-#define ST_IN 0x02
-#define ST_AUX 0x20
-#define EVENTS 64
+#define PS2_CMD  0x64
+#define ST_OUT   0x01
+#define ST_IN    0x02
+#define ST_AUX   0x20
+#define EVENTS   64
 
 extern void irq12_stub();
-
-#ifdef QUNETRA_HOST_TEST
-static inline uint32 irqSave() { return 0; }
-static inline void irqRestore(const uint32 f) { (void)f; }
-#else
 static inline uint32 irqSave() {
 	uint32 f;
 	__asm__ volatile ("pushf; pop %0; cli" : "=r"(f) : : "memory");
 	return f;
 }
 static inline void irqRestore(const uint32 f) { __asm__ volatile ("push %0; popf" : : "r"(f) : "memory", "cc"); }
-#endif
 static inline void barrier() { __asm__ volatile ("" : : : "memory"); }
 
 static mouseEvent queue[EVENTS];
@@ -50,13 +45,13 @@ static volatile uint8 qHead = 0, qTail = 0;
 static uint8 deviceId = 0, pkt[4], pktLen = 0, pktNeed = 3;
 static uint64 pktDeadline = 0;
 static volatile uint8 buttons = 0;
-static volatile int32 posX = 0, posY = 0, wheelSum = 0;
+static volatile uint32 posX = 0, posY = 0;
+static volatile int16 wheelSum = 0;
 static uint32 boundW = 0, boundH = 0;
 
 static state waitInputFree(const uint32 ms) {
 	const uint64 dl = timerDeadline(ms);
-	do {
-		if (!(inb(PS2_CMD) & ST_IN)) return true;
+	do { if (!(inb(PS2_CMD) & ST_IN)) return true;
 	} while (!timerExpired(dl));
 	return false;
 }
@@ -73,9 +68,7 @@ static state readByte(uint8* v, const uint32 ms, const state fromMouse) {
 	} while (!timerExpired(dl));
 	return false;
 }
-static void flushOutput() {
-	for (uint8 i = 0; i < 32 && (inb(PS2_CMD) & ST_OUT); i++) inb(PS2_DATA);
-}
+static void flushOutput() { for (uint8 i = 0; i < 32 && (inb(PS2_CMD) & ST_OUT); i++) inb(PS2_DATA); }
 static state ctrlCommand(const uint8 cmd) {
 	if (!waitInputFree(100)) return false;
 	outb(PS2_CMD, cmd);
@@ -98,7 +91,6 @@ static state mouseSend(const uint8 b) {
 }
 static state setRate(const uint8 rate) { return mouseSend(0xF3) && mouseSend(rate); }
 static state readId(uint8* id) { return mouseSend(0xF2) && readByte(id, 200, true); }
-
 state initMouse() {
 	initTimer();
 	const uint32 flags = irqSave();
@@ -141,12 +133,11 @@ done:
 	return ok;
 }
 state mouseHasWheel() { return deviceId >= 3; }
-
-static void pushEvent(const int dx, const int dy, const int wheel) {
+static void pushEvent(const int16 dx, const int16 dy, const int16 wheel) {
 	const uint8 next = (uint8)((qHead + 1) % EVENTS);
 	if (next == qTail) return;
-	queue[qHead].dx = (int16)dx;
-	queue[qHead].dy = (int16)dy;
+	queue[qHead].dx = dx;
+	queue[qHead].dy = dy;
 	queue[qHead].wheel = (int8)wheel;
 	queue[qHead].buttons = buttons;
 	barrier();
@@ -154,7 +145,7 @@ static void pushEvent(const int dx, const int dy, const int wheel) {
 }
 static void handlePacket() {
 	const uint8 flags = pkt[0];
-	int dx = 0, dy = 0, wheel = 0;
+	int16 dx = 0, dy = 0, wheel = 0;
 	if (!(flags & 0xC0)) {
 		dx = pkt[1] - ((flags & 0x10) ? 256 : 0);
 		dy = -(pkt[2] - ((flags & 0x20) ? 256 : 0));
@@ -224,8 +215,64 @@ void mouseSetPosition(const int32 x, const int32 y) {
 }
 int32 mouseTakeWheel() {
 	const uint32 f = irqSave();
-	const int32 v = wheelSum;
+	const int16 v = wheelSum;
 	wheelSum = 0;
 	irqRestore(f);
 	return v;
+}
+#define CURSOR_W 11
+#define CURSOR_H 18
+static const int8 cursor[] = {
+	1, -1,
+	1, -2,
+	1, -3,
+	1, -4,
+	1, -5,
+	1, -6,
+	1, -7,
+	1, -8,
+	1, -9,
+	1, -10,
+	1, -11,
+	1, -11,
+	1, -8,
+	3, -4,1,-4,
+	3, -3,2,-4,
+	3, -2,4,-4,
+	2, 6,-4,
+	2, 7,-2
+};
+static uint32 oldPx[CURSOR_W * CURSOR_H], oldX = 0, oldY = 0;
+static state isFirst = true, drawCur = false;
+static void savePx() { for (uint32 y = 0; y < CURSOR_H; y++) for (uint32 x = 0; x < CURSOR_W; x++) oldPx[y * CURSOR_W + x] = getPx(posX + x, posY + y); }
+void setDrawCursor(const state draw) { drawCur = draw; }
+void eraseCursor() { for (uint32 y = 0; y < CURSOR_H; y++) for (uint32 x = 0; x < CURSOR_W; x++) putPx(oldX + x, oldY + y, oldPx[y * CURSOR_W + x]); }
+void drawCursorRaw() {
+	if (!drawCur) return;
+	eraseCursor();
+	savePx();
+	uint8 c = 1, l = cursor[0], y = 0;
+	while (c < sizeof(cursor)) {
+		uint8 x = 0;
+		for (uint8 i = 0; i < l; i++) {
+			if (cursor[c] < 0) {
+				drawRect(posX + x, posY + y, -cursor[c], 1, 0xFFFFFF);
+				x += -cursor[c];
+			} else x += cursor[c];
+			c++;
+		}
+		l = cursor[c];
+		y++;
+		c++;
+	}
+	oldX = posX;
+	oldY = posY;
+}
+void drawCursor() {
+	if (!drawCur) return;
+	if (isFirst) {
+		savePx();
+		isFirst = false;
+	}
+	if (oldX != posX || oldY != posY) drawCursorRaw();
 }

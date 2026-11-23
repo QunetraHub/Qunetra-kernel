@@ -9,6 +9,9 @@ KERNEL   = $(BIN_DIR)/kernel.bin
 IMG      = qunetra.img
 IMG_SIZE = 64 # MiB
 
+WIDTH = 1280
+HEIGHT = 720
+
 STORAGE_TYPE = AHCI # ATA / AHCI
 
 CFLAGS   = -std=gnu99 -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-builtin -mgeneral-regs-only -fcf-protection=none -O2 -Wall -Wextra -I. -Iinclude
@@ -67,7 +70,7 @@ $(IMG):
 run: all $(IMG)
 	@printf "$(TEXT)Running '$(LIGHT_TEXT)$(ISO)$(TEXT)' on $(LIGHT_TEXT)QEMU$(TEXT) [Controller: $(LIGHT_TEXT)$(strip $(STORAGE_TYPE))$(TEXT)]...\n"
 	@qemu-system-i386 -cdrom $(BIN_DIR)/$(ISO) -boot d \
-		-device VGA,xres=1280,yres=720 -display gtk,zoom-to-fit=off \
+		-device VGA,xres=$(WIDTH),yres=$(HEIGHT) -display sdl \
 		$(DRIVE_ARGS) $(NET_ARGS) \
 		-d int,cpu_reset -D qemu.log
 

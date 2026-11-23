@@ -91,16 +91,17 @@ static void prtVal(const char* name, const uint v, const char* type) {
 	kprintf("%q[%q%d%s%q]\n", 4, 8, v, type, 4);
 }
 static uint64 getSectorSize(const uint64 sectors, const char** memUnit) {
-	if (sectors >= 2199023255552ULL) { *memUnit = " PiB"; return sectors / 2199023255552ULL; }
-	else if (sectors >= 2147483648ULL) { *memUnit = " TiB"; return sectors / 2147483648ULL; }
-	else if (sectors >= 2097152ULL) { *memUnit = " GiB"; return sectors / 2097152ULL; }
-	else if (sectors >= 2048ULL) { *memUnit = " MiB"; return sectors / 2048ULL; }
-	else if (sectors >= 2ULL) { *memUnit = " KiB"; return sectors / 2ULL; }
+	if      (sectors >= 2199023255552ULL) { *memUnit = " PiB"; return sectors / 2199023255552ULL; }
+	else if (sectors >= 2147483648ULL)    { *memUnit = " TiB"; return sectors / 2147483648ULL; }
+	else if (sectors >= 2097152ULL)       { *memUnit = " GiB"; return sectors / 2097152ULL; }
+	else if (sectors >= 2048ULL)          { *memUnit = " MiB"; return sectors / 2048ULL; }
+	else if (sectors >= 2ULL)             { *memUnit = " KiB"; return sectors / 2ULL; }
 	else { *memUnit = " B"; return sectors * 512ULL; }
 }
 
 extern void qunetraStart();
 extern void qunetraLoop(const char keyPressed);
+extern void drawCursor();
 
 void kernel_main(const uint32 magic, const uint32 addr) {
 	if (magic != 0x36d76289) {
@@ -117,6 +118,7 @@ void kernel_main(const uint32 magic, const uint32 addr) {
 	prtState("Console", console);
 	prtState("CLI", initCLI());
 	prtNxN("Screen resolution", getWidth(), 'x', getHeight());
+	prtState("Timer", initTimer());
 	prtState("Kernel", true);
 	kprintf("%q=-= %qInterrupts %q=-=\n", 4, 13, 4);
 	prtState("IDT + PIC", initInterrupts());
@@ -134,8 +136,6 @@ void kernel_main(const uint32 magic, const uint32 addr) {
 	const uint64 sectors = storageSectors(), diskMem = getSectorSize(sectors, &memUnit);
 	prtVal("Sectors", sectors, "");
 	prtVal("Disk memory", diskMem, memUnit);
-	kprintf("%q=-= %qTime %q=-=\n", 4, 13, 4);
-	prtState("Timer", initTimer());
 	kprintf("%q=-= %qNetwork %q=-=\n", 4, 13, 4);
 	const state net = netInit();
 	prtState("e1000", net);
@@ -154,11 +154,13 @@ void kernel_main(const uint32 magic, const uint32 addr) {
 		}
 		putChar('\n');
 	}
+	setDrawCursor(true);
 	qunetraStart();
 	while (true) {
 		const char c = keyboardGet();
 		setCharCLI(c);
 		netPoll();
 		qunetraLoop(c);
+		drawCursor();
 	}
 }

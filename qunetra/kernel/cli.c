@@ -318,7 +318,11 @@ __nqc__(github) { __qccu__(3, 4, "<user> <repo name> <path> [branch (default: ma
 	strConvert(url, sizeof(url), "https://raw.githubusercontent.com/%s/%s/%s/%s", argv[1], argv[2], argc == 5 ? argv[4] : "main", file);
 	httpGetUrl(url, printSink);
 }
-__nqc__(clear) { __qcdb__ lfbFill(0); }
+extern void drawCursorRaw();
+__nqc__(clear) { __qcdb__
+	lfbFill(0);
+	drawCursorRaw();
+}
 __nqc__(trunc) { __qccu__(1, 1, "<filename>")
 	for (int i = 1; i < argc; i++) {
 		__getFile_TF_for__
