@@ -74,7 +74,6 @@ static void push(const char c) {
 		head = next;
 	}
 }
-
 void keyboardIrqHandler() {
 	const uint8 raw = inb(0x60);
 	if (raw == 0xE0) extended = true;
@@ -85,13 +84,10 @@ void keyboardIrqHandler() {
 		if (extended) {
 			extended = false;
 			if (!release) c = translateExtended(sc);
-		} else if (sc == 0x2A) {
-			shiftMask = release ? (shiftMask & ~1) : (shiftMask | 1);
-		} else if (sc == 0x36) {
-			shiftMask = release ? (shiftMask & ~2) : (shiftMask | 2);
-		} else if (sc == 0x3A) {
-			if (!release) capsOn = !capsOn;
-		} else if (!release) c = translate(sc);
+		} else if (sc == 0x2A) shiftMask = release ? (shiftMask & ~1) : (shiftMask | 1);
+		else if (sc == 0x36) shiftMask = release ? (shiftMask & ~2) : (shiftMask | 2);
+		else if (sc == 0x3A) { if (!release) capsOn = !capsOn; }
+		else if (!release) c = translate(sc);
 		if (c) push(c);
 	}
 	outb(0x20, 0x20);
@@ -102,7 +98,6 @@ char keyboardGet() {
 	tail = (tail + 1) % KBD_BUF_SIZE;
 	return c;
 }
-
 static state waitInput() {
 	for (uint32 i = 0; i < 100000; i++) if (!(inb(0x64) & 2)) return true;
 	return false;
@@ -112,7 +107,6 @@ static state waitOutput() {
 	return false;
 }
 static void flushOutput() { for (uint8 i = 0; i < 16 && (inb(0x64) & 1); i++) inb(0x60); }
-
 state initKeyboard() {
 	shiftMask = 0;
 	capsOn = false;
